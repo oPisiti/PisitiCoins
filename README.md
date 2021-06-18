@@ -1,6 +1,6 @@
 # PisitiCoins
 
-Full logic a very simple and NOT secure cryptocurrency.
+Logic of a very simple and NOT secure cryptocurrency.
 
 Just an exercise to better understand the workings of blockchains.
 
