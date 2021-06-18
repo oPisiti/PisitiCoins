@@ -144,6 +144,9 @@ def check_chain_validity(check_last = 10, check_all = False):
 
 
 if __name__ == "__main__":
+
+    file_name = 'PisitiCoin.json'
+
     # Interface
     while True:
         print("-------------------------------------")
@@ -151,11 +154,11 @@ if __name__ == "__main__":
         print("-------------------------------------")
         print("")
         greeting = "What do you wish to do?"
-        options = ["See Account Balance", "Send PisitiCoins", "Check Block Chain Validity", "Quit"]
+        options = ["See Account Balance", "Send PisitiCoins", "Check Block Chain Validity", "Show Latest blocks", "Quit"]
         answer = OptionsMenu(options, greeting)
         os.system('cls')
 
-        with open('PisitiCoin.json') as block_json: 
+        with open(file_name) as block_json: 
             read_data = json.load(block_json)
             pkeys = read_data['Public keys']
 
@@ -192,9 +195,35 @@ if __name__ == "__main__":
             PisitiCoin(from_id, to_id, amount, miner)
             input()
 
+        elif answer == "Show Latest blocks":
+            amount = int(input("How many blocks do you wish to see? "))
+            os.system('cls')
+            
+            with open(file_name) as block_json: 
+                read_data = json.load(block_json)    
+                blockChain_len = len(read_data['BlockChain'])
+
+                if amount > blockChain_len:
+                    amount = blockChain_len
+
+                blocks = read_data['BlockChain'][blockChain_len - amount:]
+
+                for block in blocks:
+                    print(f"Block Number {block['number']}")                  
+                    print(f"Previous Hash: {block['previous hash']}")
+                    print(f"From {block['from']}")
+                    print(f"To {block['to']}")
+                    print(f"Amount: {block['value']} PisitiCoins")
+                    print(f"Mined By {block['miner']}")
+                    print(f"Miner Reward: {block['miner reward']} PisitiCoins")
+                    print(f"Nonce: {block['nonce']}")
+                    print(f"Hash: {block['hash']}", end = "\r\n\n")
+
+            input()
+
+
         elif answer == "Check Block Chain Validity":
             check_chain_validity(check_all = True)
-
             input()
 
         elif answer == "Quit":
