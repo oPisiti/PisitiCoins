@@ -1,7 +1,17 @@
 # PisitiCoins
 
-Logic of a very simple and NOT secure cryptocurrency.
+An exercise to better understand the workings of blockchains and cryptocurrencies.
 
-Just an exercise to better understand the workings of blockchains.
+Usage: open PisitiCoin.py. No external modules required.
+Comes with pre populated blockchain. Give it a try!
 
-The Menu has a few options, such as view a wallet's balance, transfer coins, check blockchain validity and show chain.
+Uses custom made:
+  - Options menu
+  - SHA256 implementation
+
+The Menu has options such as:
+  - View a wallet's balance
+  - Transfer coins
+  - Check blockchain validity
+  - Show latest block in chain.
+
