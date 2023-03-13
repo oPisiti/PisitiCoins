@@ -17,11 +17,8 @@ class Block():
             "miner reward": 10000
         }      
     
-    def calculate_hash(self):
-        # print(format(self.number, '#066x'))
-        
+    def calculate_hash(self):        
         # Full message
-        # base_message = self.block['previous hash'][2:] + format(self.block['number'], '#066x')[2:] + self.block['from'][2:] + self.block['to'][2:] + format(self.block['value'], '#066x')[2:] + self.block['miner'][2:] + format(self.block['miner reward'], '#066x')[2:]
         base_message = det_string(self.block['previous hash'], self.block['number'], self.block['from'], self.block['to'], self.block['value'], self.block['miner'], self.block['miner reward'])
         nonce = 0
         difficulty = 2
@@ -45,11 +42,8 @@ class Block():
                 print("")
                 break
 
-        # print(this_hash)
-
         self.block['hash'] = "0x" + this_hash
         self.block['nonce'] = nonce
-        # print(self.block)
 
     def chain_block(self, json_file):
         with open(json_file) as block_json:
@@ -57,7 +51,8 @@ class Block():
             read_chain['BlockChain'].append(self.block) 
 
         with open(json_file, 'w') as outfile:
-            json.dump(read_chain, outfile)    
+            json.dump(read_chain, outfile)
+                
 
 def AccountBalance(from_id):
     # Returns the account balance for a specific account
@@ -76,8 +71,8 @@ def AccountBalance(from_id):
     
     return balance
 
+
 def det_string(previous_hash, number, from_id, to_id, value, miner, miner_reward):
-    # print(f"OIOIOI: {format(miner_reward, '#066x')[2:]}")
     return previous_hash[2:] + format(number, '#066x')[2:] + from_id[2:] + to_id[2:] + format(value, '#066x')[2:] + miner[2:] + format(miner_reward, '#066x')[2:]
 
 
@@ -100,8 +95,8 @@ def PisitiCoin(from_id, to_id, value, miner):
         new_block.calculate_hash()
         new_block.chain_block('PisitiCoin.json')
 
-def check_chain_validity(check_last = 10, check_all = False):   
 
+def check_chain_validity(check_last = 10, check_all = False):   
     with open('PisitiCoin.json') as block_json:
         read_chain = json.load(block_json)
         chain = read_chain["BlockChain"]
@@ -116,18 +111,8 @@ def check_chain_validity(check_last = 10, check_all = False):
 
         valid = True
         for i in range(start, size):
-            # print(f"previous hash: {chain[i]['previous hash']}")
-            # print(f"number: {chain[i]['number']}")
-            # print(f"from: {chain[i]['from']}")
-            # print(f"to: {chain[i]['to']}")
-            # print(f"value: {chain[i]['value']}")
-            # print(f"miner: {chain[i]['miner']}")
-            # print(f"miner reward: {chain[i]['miner reward']}")
-
             message = det_string(chain[i]['previous hash'], chain[i]['number'], chain[i]['from'], chain[i]['to'], chain[i]['value'], chain[i]['miner'], chain[i]['miner reward'])   
             message += hex(chain[i]['nonce'])  
-            # print(f"nonce: {hex(chain[i]['nonce'])}")
-            # print(f"Message: {message}")
 
             this_hash = "0x" + SHA256(message)
 
@@ -140,7 +125,6 @@ def check_chain_validity(check_last = 10, check_all = False):
         if valid:
             print(f"All blocks are valid!")
             print("")
-
 
 
 if __name__ == "__main__":
@@ -230,32 +214,3 @@ if __name__ == "__main__":
             break
 
         os.system('cls')
-
-
-
-    ## For adding random transactions
-    # with open('PisitiCoin.json') as block_json: 
-    #     read_data = json.load(block_json)
-    #     miner = secrets.choice(read_data['Public keys'])
-    #     # from_id = secrets.choice(read_data['Public keys'])
-    #     from_id = "0x7e5f4552091a69125d5dfcb7b8c2659029395bdf"
-
-    #     while True:
-    #         to_id = secrets.choice(read_data['Public keys'])
-    #         if to_id != from_id:
-    #             break  
-
-    # value = int(random.random()*100)
-
-    # PisitiCoin(from_id, to_id, value, miner)
-
-
-
-    ## For adding the first block - Requires changes in function PisitiCoin
-    ## like fixing size and previous hash
-    # miner = "0x69240a05f2e6a5fc533a5861abfb94d8af8e9fc9"
-    # from_id = "0x0000000000000000000000000000000000000000"
-    # to_id = "0x7e5f4552091a69125d5dfcb7b8c2659029395bdf"
-    # value = 73611
-
-    # PisitiCoin(from_id, to_id, value, miner)
