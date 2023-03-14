@@ -11,15 +11,12 @@ Open PisitiCoin.py. No external modules required.
 
 Comes with pre populated blockchain. Give it a try!
 
-##
-Uses custom made:
-  - Options menu
-  - SHA256 implementation
-
-##
-The Menu has options such as:
+## Functionalities
   - View a wallet's balance
   - Transfer coins
   - Check blockchain validity
-  - Show latest block in chain.
+  - Show latest blocks in chain.
 
+## Custom made:
+  - Options menu
+  - SHA256 implementation
