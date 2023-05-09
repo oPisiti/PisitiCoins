@@ -2,6 +2,7 @@ import json
 import random
 import secrets
 import os
+from getch import getch
 from SHA256 import *
 from OptionsMenu import *
 

@@ -162,3 +162,4 @@ cython_debug/
 .exe
 CodeRunner*.py
 *.pyc
+*.ods*
