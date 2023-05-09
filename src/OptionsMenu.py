@@ -1,6 +1,6 @@
 from pynput import keyboard
+import subprocess
 from time import sleep
-import os
 
 class bcolors:
     """ Font colors """
@@ -37,7 +37,7 @@ def update_keys_pressed(key) -> None:
 # Adding listener for keyboard
 listener = keyboard.Listener(
     suppress   = True,
-    on_press   = update_keys_pressed,)
+    on_press   = update_keys_pressed)
 listener.start()
 
 
@@ -51,9 +51,9 @@ def OptionsMenu(opt, greeting = "Choose an Option:"):
 
     global KEYS_PRESSED
 
-    os.system('color')      # This command needs to be called in order for the colors to be changed
     chosen = False
     choice = 0
+
 
     while True:
 
@@ -82,6 +82,7 @@ def OptionsMenu(opt, greeting = "Choose an Option:"):
         elif KEYS_PRESSED["enter"]: 
             KEYS_PRESSED["enter"] = False
 
+            listener.stop()
             return opt[choice]
 
 
