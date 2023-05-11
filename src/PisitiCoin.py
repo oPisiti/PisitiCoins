@@ -2,7 +2,6 @@ import json
 import random
 import secrets
 import os
-from getch import getch
 from SHA256 import *
 from OptionsMenu import *
 
@@ -18,7 +17,12 @@ class Block():
             "miner reward": 10000
         }      
     
-    def calculate_hash(self):        
+    def calculate_hash(self) -> None:        
+        """ 
+        Returns the hash of a block.
+        This method determines the order of bytes in hash input.
+        """
+
         # Full message
         base_message = det_string(self.block['previous hash'], self.block['number'], self.block['from'], self.block['to'], self.block['value'], self.block['miner'], self.block['miner reward'])
         nonce = 0
@@ -46,7 +50,9 @@ class Block():
         self.block['hash'] = "0x" + this_hash
         self.block['nonce'] = nonce
 
-    def chain_block(self, json_file):
+    def chain_block(self, json_file) -> None:
+        """ Adds a block to the chain """
+
         with open(json_file) as block_json:
             read_chain = json.load(block_json)
             read_chain['BlockChain'].append(self.block) 
@@ -56,8 +62,9 @@ class Block():
                 
 
 def AccountBalance(from_id):
-    # Returns the account balance for a specific account
-    with open('PisitiCoin.json') as block_json:
+    """ Returns the account balance for a specific account """
+
+    with open("../db/PisitiCoin.json") as block_json:
         read_chain = json.load(block_json)
         balance = 0
         for block in read_chain['BlockChain']:
@@ -73,11 +80,13 @@ def AccountBalance(from_id):
     return balance
 
 
-def det_string(previous_hash, number, from_id, to_id, value, miner, miner_reward):
+def det_string(previous_hash, number, from_id, to_id, value, miner, miner_reward) -> str:
     return previous_hash[2:] + format(number, '#066x')[2:] + from_id[2:] + to_id[2:] + format(value, '#066x')[2:] + miner[2:] + format(miner_reward, '#066x')[2:]
 
 
-def PisitiCoin(from_id, to_id, value, miner):
+def PisitiCoin(from_id, to_id, value, miner) -> None:
+    """ Creates and chains a new block if possible """
+
     # Checking the number of blocks
     with open('PisitiCoin.json') as block_json:
         read_chain = json.load(block_json)
@@ -97,7 +106,12 @@ def PisitiCoin(from_id, to_id, value, miner):
         new_block.chain_block('PisitiCoin.json')
 
 
-def check_chain_validity(check_last = 10, check_all = False):   
+def check_chain_validity(check_last = 10, check_all = False) -> None: 
+    """ 
+    Rehashes every block, in order, to determine if and where is has been altered.
+    Prints the block number where an inconsistency has been detected.
+    """
+
     with open('PisitiCoin.json') as block_json:
         read_chain = json.load(block_json)
         chain = read_chain["BlockChain"]
@@ -128,90 +142,101 @@ def check_chain_validity(check_last = 10, check_all = False):
             print("")
 
 
+def run_interface() -> None:
+    """ Runs the main interface"""
+
+    greeting = "What do you wish to do?"
+    options = ["See Account Balance", "Send PisitiCoins", "Check Block Chain Validity", "Show Latest blocks", "Quit"]
+    os.system('cls')
+
+    print("-------------------------------------")
+    print("| Welcome to PisitiCoin's Interface |")
+    print("-------------------------------------")
+    print("")
+
+    answer = OptionsMenu(options, greeting)
+
+    with open(file_name) as block_json: 
+        read_data = json.load(block_json)
+        pkeys = read_data['Public keys']
+
+    if answer == "See Account Balance":
+        greeting = "Choose and account"        
+        answer = OptionsMenu(pkeys, greeting)
+        
+        acc_balance = AccountBalance(answer)
+        os.system('cls')
+        print(f"Account {answer} has {acc_balance} PisitiCoins")
+        input()
+    
+    elif answer == "Send PisitiCoins":
+        while True:
+            greeting = "Choose your account"        
+            from_id = OptionsMenu(pkeys, greeting)
+            os.system('cls')
+
+            greeting = "Choose the account you wish to transfer to"        
+            to_id = OptionsMenu(pkeys, greeting)
+            os.system('cls')
+            
+            amount = int(input("How many PisitiCoins to transfer? "))
+
+            if amount < 0:
+                amount *= -1
+
+            greeting = f"You wish to transfer {amount} PisitiCoins from {from_id} to {to_id}, correct?"
+            options = ["Yes", "No"]
+            if OptionsMenu(options, greeting) == "Yes":
+                break
+        
+        miner = secrets.choice(read_data['Public keys'])
+        PisitiCoin(from_id, to_id, amount, miner)
+        input()
+
+    elif answer == "Show Latest blocks":
+        amount = int(input("How many blocks do you wish to see? "))
+        os.system('cls')
+        
+        with open(file_name) as block_json: 
+            read_data = json.load(block_json)    
+            blockChain_len = len(read_data['BlockChain'])
+
+            if amount > blockChain_len:
+                amount = blockChain_len
+
+            blocks = read_data['BlockChain'][blockChain_len - amount:]
+
+            for block in blocks:
+                print(f"Block Number {block['number']}")                  
+                print(f"Previous Hash: {block['previous hash']}")
+                print(f"From {block['from']}")
+                print(f"To {block['to']}")
+                print(f"Amount: {block['value']} PisitiCoins")
+                print(f"Mined By {block['miner']}")
+                print(f"Miner Reward: {block['miner reward']} PisitiCoins")
+                print(f"Nonce: {block['nonce']}")
+                print(f"Hash: {block['hash']}", end = "\r\n\n")
+
+        input()
+
+
+    elif answer == "Check Block Chain Validity":
+        check_chain_validity(check_all = True)
+        input()
+
+    elif answer == "Quit":
+        raise StopIteration()
+
+    os.system('cls')
+
+
 if __name__ == "__main__":
 
     file_name = 'PisitiCoin.json'
 
     # Interface
     while True:
-        print("-------------------------------------")
-        print("| Welcome to PisitiCoin's Interface |")
-        print("-------------------------------------")
-        print("")
-        greeting = "What do you wish to do?"
-        options = ["See Account Balance", "Send PisitiCoins", "Check Block Chain Validity", "Show Latest blocks", "Quit"]
-        answer = OptionsMenu(options, greeting)
-        os.system('cls')
-
-        with open(file_name) as block_json: 
-            read_data = json.load(block_json)
-            pkeys = read_data['Public keys']
-
-        if answer == "See Account Balance":
-            greeting = "Choose and account"        
-            answer = OptionsMenu(pkeys, greeting)
-            
-            acc_balance = AccountBalance(answer)
-            os.system('cls')
-            print(f"Account {answer} has {acc_balance} PisitiCoins")
-            input()
-        
-        elif answer == "Send PisitiCoins":
-            while True:
-                greeting = "Choose your account"        
-                from_id = OptionsMenu(pkeys, greeting)
-                os.system('cls')
-
-                greeting = "Choose the account you wish to transfer to"        
-                to_id = OptionsMenu(pkeys, greeting)
-                os.system('cls')
-                
-                amount = int(input("How many PisitiCoins to transfer? "))
-
-                if amount < 0:
-                    amount *= -1
-
-                greeting = f"You wish to transfer {amount} PisitiCoins from {from_id} to {to_id}, correct?"
-                options = ["Yes", "No"]
-                if OptionsMenu(options, greeting) == "Yes":
-                    break
-            
-            miner = secrets.choice(read_data['Public keys'])
-            PisitiCoin(from_id, to_id, amount, miner)
-            input()
-
-        elif answer == "Show Latest blocks":
-            amount = int(input("How many blocks do you wish to see? "))
-            os.system('cls')
-            
-            with open(file_name) as block_json: 
-                read_data = json.load(block_json)    
-                blockChain_len = len(read_data['BlockChain'])
-
-                if amount > blockChain_len:
-                    amount = blockChain_len
-
-                blocks = read_data['BlockChain'][blockChain_len - amount:]
-
-                for block in blocks:
-                    print(f"Block Number {block['number']}")                  
-                    print(f"Previous Hash: {block['previous hash']}")
-                    print(f"From {block['from']}")
-                    print(f"To {block['to']}")
-                    print(f"Amount: {block['value']} PisitiCoins")
-                    print(f"Mined By {block['miner']}")
-                    print(f"Miner Reward: {block['miner reward']} PisitiCoins")
-                    print(f"Nonce: {block['nonce']}")
-                    print(f"Hash: {block['hash']}", end = "\r\n\n")
-
-            input()
-
-
-        elif answer == "Check Block Chain Validity":
-            check_chain_validity(check_all = True)
-            input()
-
-        elif answer == "Quit":
-            break
-
-        os.system('cls')
+        try:
+            run_interface()
+        except StopIteration as e:
+            return
