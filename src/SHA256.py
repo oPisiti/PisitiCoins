@@ -9,10 +9,10 @@ def str2bin_str(message):
 def bin_len(x):
     return len(bin(x)) - 2
 
-# Numbers must be in a STRING. "011010" -> 0b011010
-def rightrotate(num, bits):
+# Numbers must be in a string format. "011010" -> 0b011010
+def right_rotate(num, bits):
     bin_number_len = 32
-   
+
     num = int(num, 2)
     right = (num >> bits)|(num << (bin_number_len - bits)) & (2**bin_number_len - 1)
     return right
@@ -21,29 +21,21 @@ def rightrotate(num, bits):
 def SHA256(message):
     # Followed the steps from https://qvault.io/cryptography/how-sha-2-works-step-by-step-sha-256/
 
-    # Step 1 – Pre-Processing    
+    # Step 1 – Pre-Processing
     message = str2bin_str(message)
-    # print(f"Original: {message}")
 
     original_size = len(message)
-    # print(f"Original size: {original_size}")
 
     message += "1"
-    # print(f"Appended 1: {message}")
 
-    my_size = ceil(len(message)/512)*512 -64
-    # print(f"My size: {my_size}")
+    my_size = ceil(len(message) / 512) * 512 - 64
 
-    message += "0"*(my_size - (original_size + 1))
-    # print(f"Completed with 0s up to {my_size}: {message}")
+    message += "0" * (my_size - (original_size + 1))
 
     bin_original_size = dec2bin_int(original_size)
     size_bin_original_size = sum(1 for i in bin(original_size)) - 2
-    # print(f"size_bin_original_size: {size_bin_original_size}")
-    message += "0"*(64 - size_bin_original_size)
+    message += "0" * (64 - size_bin_original_size)
     message += str(bin_original_size)
-    # print(f"Added the big-endian: {message}")
-    # print(f"Input Size:{len(message)}")
 
     # Step 2 - initialize Hash Values (h)
     h0 = 0x6a09e667
@@ -64,30 +56,30 @@ def SHA256(message):
         0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
         0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
         0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2]
-    
+
     # Step 4 - Chunk Loops
-    count = 0     
+    count = 0
     for j in range(int(len(message)/512)):
         # Step 5 – Create Message Schedule (w)
         w = []
-          
+
         for i in range(16):
             word = ""
             for j in range(count, count + 32):
-                word += message[j] 
+                word += message[j]
             w.append(word)
             count += 32
 
         for i in range(48):
             w.append("0"*32)
 
-        for i in range(16, 64):            
-            s0 = (rightrotate(w[i - 15], 7)) ^ (rightrotate(w[i - 15], 18)) ^ (int(w[i - 15], 2) >> 3)
-            s1 = (rightrotate(w[i - 2], 17)) ^ (rightrotate(w[i - 2], 19)) ^ (int(w[i - 2], 2) >> 10)
+        for i in range(16, 64):
+            s0 = (right_rotate(w[i - 15], 7)) ^ (right_rotate(w[i - 15], 18)) ^ (int(w[i - 15], 2) >> 3)
+            s1 = (right_rotate(w[i - 2], 17)) ^ (right_rotate(w[i - 2], 19)) ^ (int(w[i - 2], 2) >> 10)
             w[i] = int(w[i - 16], 2) + s0 + int(w[i - 7], 2) + s1
-            
+
             w[i] = w[i] % 0x100000000
-            
+
             w[i] = bin(w[i])[2:]
 
 
@@ -102,12 +94,12 @@ def SHA256(message):
         h = h7
 
         for i in range(64):
-            S1 = (rightrotate(bin(e), 6)) ^ (rightrotate(bin(e), 11)) ^ (rightrotate(bin(e), 25))
+            S1 = (right_rotate(bin(e), 6)) ^ (right_rotate(bin(e), 11)) ^ (right_rotate(bin(e), 25))
             ch = (e & f) ^ ((~e) & g)
             temp1 = h + S1 + ch + k[i] + int(w[i], 2)
             temp1 = temp1 % 0x100000000
 
-            S0 = (rightrotate(bin(a), 2)) ^ (rightrotate(bin(a), 13)) ^ (rightrotate(bin(a), 22))
+            S0 = (right_rotate(bin(a), 2)) ^ (right_rotate(bin(a), 13)) ^ (right_rotate(bin(a), 22))
             maj = (a & b) ^ (a & c) ^ (b & c)
             temp2 = S0 + maj
             temp2 = temp2 % 0x100000000

@@ -17,7 +17,7 @@ class Block():
             "miner reward": 10000
         }      
     
-    def calculate_hash(self) -> None:        
+    def calculate_hash(self, print_steps = False) -> None:        
         """ 
         Returns the hash of a block.
         This method determines the order of bytes in hash input.
@@ -29,22 +29,23 @@ class Block():
         difficulty = 2
         compare = "0" * difficulty
 
-        os.system('cls')
+        os.system(clear_command)
 
         while True:
-            print(f"Trying nonce {nonce}", end = "\r")
+            if print_steps: print(f"Trying nonce {nonce}", end = "\r")
 
             message = base_message + hex(nonce)
             this_hash = SHA256(message)
             
-            if this_hash[0:difficulty] != compare:                
+            if this_hash[0 : difficulty] != compare:                
                 nonce += 1
             else:
-                os.system('cls')
-                print(f"Block MINED. Adding {self.block['miner reward']} to {self.block['miner']} as miner reward")
-                print(f"nonce: {nonce}")
-                print(f"Hash: {this_hash}")
-                print("")
+                os.system(clear_command)
+                if print_steps: 
+                    print(f"Block MINED. Adding {self.block['miner reward']} to {self.block['miner']} as miner reward")
+                    print(f"nonce: {nonce}")
+                    print(f"Hash: {this_hash}")
+                    print("")
                 break
 
         self.block['hash'] = "0x" + this_hash
@@ -84,7 +85,7 @@ def det_string(previous_hash, number, from_id, to_id, value, miner, miner_reward
     return previous_hash[2:] + format(number, '#066x')[2:] + from_id[2:] + to_id[2:] + format(value, '#066x')[2:] + miner[2:] + format(miner_reward, '#066x')[2:]
 
 
-def PisitiCoin(from_id, to_id, value, miner) -> None:
+def PisitiCoin(from_id: str, to_id: str, value: float, miner: str, print_steps = False) -> None:
     """ Creates and chains a new block if possible """
 
     # Checking the number of blocks
@@ -96,13 +97,15 @@ def PisitiCoin(from_id, to_id, value, miner) -> None:
     from_balance = AccountBalance(from_id)
     
     if from_balance <= value:
+        if not print_steps: return 
+
         print(f"Account {from_id} balance: {from_balance} PisitiCoins")
         print(f"Insufficient funds in account {from_id}. Aborting operation")
 
     else:
         new_block = Block(size, prev_hash, from_id, to_id, value, miner)
 
-        new_block.calculate_hash()
+        new_block.calculate_hash(print_steps = print_steps)
         new_block.chain_block('PisitiCoin.json')
 
 
@@ -145,14 +148,19 @@ def check_chain_validity(check_last = 10, check_all = False) -> None:
 def run_interface() -> None:
     """ Runs the main interface"""
 
-    greeting = "What do you wish to do?"
-    options = ["See Account Balance", "Send PisitiCoins", "Check Block Chain Validity", "Show Latest blocks", "Quit"]
-    os.system('cls')
+    greeting = """
+ ___________________________________
+| Welcome to PisitiCoin's Interface |
+{}
 
-    print("-------------------------------------")
-    print("| Welcome to PisitiCoin's Interface |")
-    print("-------------------------------------")
-    print("")
+What do you wish to do?
+    """.format(" \u0305"* 35)
+
+    options = ["See Account Balance", "Send PisitiCoins", "Check Block Chain Validity", "Show Latest blocks", "Quit"]
+    
+    # Determining the clear screen command based on the OS
+    clear_command = "cls" if os.name == "nt" else "clear" 
+    os.system(clear_command)
 
     answer = OptionsMenu(options, greeting)
 
@@ -165,7 +173,7 @@ def run_interface() -> None:
         answer = OptionsMenu(pkeys, greeting)
         
         acc_balance = AccountBalance(answer)
-        os.system('cls')
+        os.system(clear_command)
         print(f"Account {answer} has {acc_balance} PisitiCoins")
         input()
     
@@ -173,11 +181,11 @@ def run_interface() -> None:
         while True:
             greeting = "Choose your account"        
             from_id = OptionsMenu(pkeys, greeting)
-            os.system('cls')
+            os.system(clear_command)
 
             greeting = "Choose the account you wish to transfer to"        
             to_id = OptionsMenu(pkeys, greeting)
-            os.system('cls')
+            os.system(clear_command)
             
             amount = int(input("How many PisitiCoins to transfer? "))
 
@@ -190,12 +198,12 @@ def run_interface() -> None:
                 break
         
         miner = secrets.choice(read_data['Public keys'])
-        PisitiCoin(from_id, to_id, amount, miner)
+        PisitiCoin(from_id, to_id, amount, miner, print_steps = True)
         input()
 
     elif answer == "Show Latest blocks":
         amount = int(input("How many blocks do you wish to see? "))
-        os.system('cls')
+        os.system(clear_command)
         
         with open(file_name) as block_json: 
             read_data = json.load(block_json)    
@@ -219,24 +227,24 @@ def run_interface() -> None:
 
         input()
 
-
     elif answer == "Check Block Chain Validity":
         check_chain_validity(check_all = True)
         input()
 
-    elif answer == "Quit":
-        raise StopIteration()
+    elif answer == "Quit": raise StopIteration()
 
-    os.system('cls')
+    os.system(clear_command)
 
 
 if __name__ == "__main__":
+    # Changing the current directory in order to use a relative path to the database
+    os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
-    file_name = 'PisitiCoin.json'
+    file_name = 'db/PisitiCoin.json'
 
     # Interface
     while True:
         try:
             run_interface()
         except StopIteration as e:
-            return
+            break

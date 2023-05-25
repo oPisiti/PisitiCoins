@@ -25,7 +25,6 @@ def update_keys_pressed(key = True) -> None:
     set_environ_bool("KEY_ENTER_IS_PRESSED", key == keyboard.Key.enter)
     set_environ_bool("ANY_VALID_KEY_IS_PRESSED",   get_environ_bool("KEY_UP_IS_PRESSED") or get_environ_bool("KEY_DOWN_IS_PRESSED") or get_environ_bool("KEY_ENTER_IS_PRESSED"))
 
-    pass
 
 def set_environ_bool(var_str: str, value_bool: bool) -> None:
     """ Sets an environment variable to a string equivalent to a boolean variable """

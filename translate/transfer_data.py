@@ -1,7 +1,7 @@
 import json
 import sqlite3
 
-def transfer_from_json_to_sqlite3(path_json: str, path_sqlite3: str) -> None:
+def transfer_json_to_sqlite3(path_json: str, path_sqlite3: str) -> None:
     """ Transfers all the data from a json file into a sqlite3 database """
     # Opening the json file
     with open(path_json, "r") as f:
@@ -50,7 +50,7 @@ def transfer_from_json_to_sqlite3(path_json: str, path_sqlite3: str) -> None:
 
 if __name__ == '__main__':
 
-    transfer_from_json_to_sqlite3(
+    transfer_json_to_sqlite3(
         path_json = "db/PisitiCoin.json",
         path_sqlite3 = "db/PisitiCoin.sqlite3",
     )
