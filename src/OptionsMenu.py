@@ -1,7 +1,10 @@
 import os
-from pynput import keyboard
 import subprocess
+from collections.abc import Iterable
 from time import sleep
+
+from pynput import keyboard
+
 
 class bcolors:
     """ Font colors """
@@ -43,7 +46,7 @@ def get_environ_bool(var_str: str) -> bool:
         case _:       raise ValueError(f"Value {os.environ[var_str]} has no boolean equivalent") 
 
 
-def OptionsMenu(opt, greeting = "Choose an Option:"):
+def OptionsMenu(opt: Iterable[str], greeting = "Choose an Option:") -> str:
     """
     This function loops printing a greeting and the options
     The current option is printed in green and when chosen (enter key) returns that string

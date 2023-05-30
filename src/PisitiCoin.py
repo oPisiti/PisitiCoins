@@ -1,112 +1,36 @@
 import json
+import os
 import random
 import secrets
-import os
-from SHA256 import *
+
+from helper import *
 from OptionsMenu import *
 
-class Block():
-    def __init__(self, number, prev_hash, from_id, to_id, value, miner):
-        self.block = {
-            "previous hash": prev_hash,
-            "number": number,
-            "from": from_id,
-            "to": to_id,
-            "value": value,
-            "miner": miner,
-            "miner reward": 10000
-        }      
-    
-    def calculate_hash(self, print_steps = False) -> None:        
-        """ 
-        Returns the hash of a block.
-        This method determines the order of bytes in hash input.
-        """
 
-        # Full message
-        base_message = det_string(self.block['previous hash'], self.block['number'], self.block['from'], self.block['to'], self.block['value'], self.block['miner'], self.block['miner reward'])
-        nonce = 0
-        difficulty = 2
-        compare = "0" * difficulty
-
-        os.system(clear_command)
-
-        while True:
-            if print_steps: print(f"Trying nonce {nonce}", end = "\r")
-
-            message = base_message + hex(nonce)
-            this_hash = SHA256(message)
-            
-            if this_hash[0 : difficulty] != compare:                
-                nonce += 1
-            else:
-                os.system(clear_command)
-                if print_steps: 
-                    print(f"Block MINED. Adding {self.block['miner reward']} to {self.block['miner']} as miner reward")
-                    print(f"nonce: {nonce}")
-                    print(f"Hash: {this_hash}")
-                    print("")
-                break
-
-        self.block['hash'] = "0x" + this_hash
-        self.block['nonce'] = nonce
-
-    def chain_block(self, json_file) -> None:
-        """ Adds a block to the chain """
-
-        with open(json_file) as block_json:
-            read_chain = json.load(block_json)
-            read_chain['BlockChain'].append(self.block) 
-
-        with open(json_file, 'w') as outfile:
-            json.dump(read_chain, outfile)
-                
-
-def AccountBalance(from_id):
-    """ Returns the account balance for a specific account """
-
-    with open("../db/PisitiCoin.json") as block_json:
-        read_chain = json.load(block_json)
-        balance = 0
-        for block in read_chain['BlockChain']:
-            if from_id == block['miner']:
-                balance += block['miner reward']
-            
-            if from_id == block['to']:
-                balance += block['value']
-
-            if from_id == block['from']:
-                balance -= block['value']
-    
-    return balance
-
-
-def det_string(previous_hash, number, from_id, to_id, value, miner, miner_reward) -> str:
-    return previous_hash[2:] + format(number, '#066x')[2:] + from_id[2:] + to_id[2:] + format(value, '#066x')[2:] + miner[2:] + format(miner_reward, '#066x')[2:]
-
-
-def PisitiCoin(from_id: str, to_id: str, value: float, miner: str, print_steps = False) -> None:
+def create_new_block(db: Database, from_id: str, to_id: str, amount: float, miner: str, print_steps = False) -> Block:
     """ Creates and chains a new block if possible """
 
-    # Checking the number of blocks
-    with open('PisitiCoin.json') as block_json:
-        read_chain = json.load(block_json)
-        size = len(read_chain['BlockChain'])
-        prev_hash = read_chain['BlockChain'][size-1]['hash']
-
-    from_balance = AccountBalance(from_id)
+    from_balance = db.get_account_balance(from_id)
     
-    if from_balance <= value:
+    if from_balance <= amount:
         if not print_steps: return 
 
-        print(f"Account {from_id} balance: {from_balance} PisitiCoins")
+        print(f"Account {from_id}'s balance: {from_balance} PisitiCoins")
         print(f"Insufficient funds in account {from_id}. Aborting operation")
 
+    # Able to create a block
     else:
-        new_block = Block(size, prev_hash, from_id, to_id, value, miner)
+        block_info = {
+            "from_id":          from_id,
+            "to_id":            to_id,
+            "amount":        amount,
+            "miner_id":         miner,
+        }
 
-        new_block.calculate_hash(print_steps = print_steps)
-        new_block.chain_block('PisitiCoin.json')
+        new_block = Block(db, block_info)
+
+        new_block.mine_block(print_steps = print_steps)
+        new_block.chain_block(db)
 
 
 def check_chain_validity(check_last = 10, check_all = False) -> None: 
@@ -129,7 +53,7 @@ def check_chain_validity(check_last = 10, check_all = False) -> None:
 
         valid = True
         for i in range(start, size):
-            message = det_string(chain[i]['previous hash'], chain[i]['number'], chain[i]['from'], chain[i]['to'], chain[i]['value'], chain[i]['miner'], chain[i]['miner reward'])   
+            message = det_string(chain[i]['previous hash'], chain[i]['id'], chain[i]['from'], chain[i]['to'], chain[i]['amount'], chain[i]['miner'], chain[i]['miner reward'])   
             message += hex(chain[i]['nonce'])  
 
             this_hash = "0x" + SHA256(message)
@@ -145,16 +69,16 @@ def check_chain_validity(check_last = 10, check_all = False) -> None:
             print("")
 
 
-def run_interface() -> None:
+def run_interface(db_path: str) -> None:
     """ Runs the main interface"""
 
-    greeting = """
- ___________________________________
-| Welcome to PisitiCoin's Interface |
-{}
-
-What do you wish to do?
-    """.format(" \u0305"* 35)
+    greeting = "\n" + \
+    "       ___________________________________\n" + \
+    "      | Welcome to PisitiCoin's Interface |\n" + \
+    "      " + " \u0305"* 35 + \
+    "\n\n" + \
+    "What do you wish to do?\n"
+    
 
     options = ["See Account Balance", "Send PisitiCoins", "Check Block Chain Validity", "Show Latest blocks", "Quit"]
     
@@ -162,32 +86,40 @@ What do you wish to do?
     clear_command = "cls" if os.name == "nt" else "clear" 
     os.system(clear_command)
 
-    answer = OptionsMenu(options, greeting)
+    # Creating a connection to the database
+    db = Database(db_path)
+    accounts = db.get_accounts_ids_and_usernames()
+    accounts_ids = tuple(accounts.keys())
 
-    with open(file_name) as block_json: 
-        read_data = json.load(block_json)
-        pkeys = read_data['Public keys']
+    answer = OptionsMenu(options, greeting)
 
     if answer == "See Account Balance":
         greeting = "Choose and account"        
-        answer = OptionsMenu(pkeys, greeting)
+        answer = OptionsMenu(accounts_ids, greeting)
         
-        acc_balance = AccountBalance(answer)
+        acc_balance = db.get_account_balance(answer)
         os.system(clear_command)
-        print(f"Account {answer} has {acc_balance} PisitiCoins")
-        input()
+        print(f"Account {accounts[answer]} ({answer}) has {acc_balance} PisitiCoins")
     
     elif answer == "Send PisitiCoins":
         while True:
             greeting = "Choose your account"        
-            from_id = OptionsMenu(pkeys, greeting)
+            from_id = OptionsMenu(accounts_ids, greeting)
             os.system(clear_command)
 
             greeting = "Choose the account you wish to transfer to"        
-            to_id = OptionsMenu(pkeys, greeting)
+            to_id = OptionsMenu(accounts_ids, greeting)
             os.system(clear_command)
             
-            amount = int(input("How many PisitiCoins to transfer? "))
+            # Getting amount            
+            while True:
+                try:                    
+                    amount = int(input("How many PisitiCoins to transfer? "))
+                    break
+                except ValueError as e: 
+                    continue
+                finally:                
+                    os.system(clear_command)
 
             if amount < 0:
                 amount *= -1
@@ -197,42 +129,43 @@ What do you wish to do?
             if OptionsMenu(options, greeting) == "Yes":
                 break
         
-        miner = secrets.choice(read_data['Public keys'])
-        PisitiCoin(from_id, to_id, amount, miner, print_steps = True)
-        input()
-
-    elif answer == "Show Latest blocks":
-        amount = int(input("How many blocks do you wish to see? "))
-        os.system(clear_command)
-        
-        with open(file_name) as block_json: 
-            read_data = json.load(block_json)    
-            blockChain_len = len(read_data['BlockChain'])
-
-            if amount > blockChain_len:
-                amount = blockChain_len
-
-            blocks = read_data['BlockChain'][blockChain_len - amount:]
-
-            for block in blocks:
-                print(f"Block Number {block['number']}")                  
-                print(f"Previous Hash: {block['previous hash']}")
-                print(f"From {block['from']}")
-                print(f"To {block['to']}")
-                print(f"Amount: {block['value']} PisitiCoins")
-                print(f"Mined By {block['miner']}")
-                print(f"Miner Reward: {block['miner reward']} PisitiCoins")
-                print(f"Nonce: {block['nonce']}")
-                print(f"Hash: {block['hash']}", end = "\r\n\n")
-
-        input()
+        # Getting random miner
+        miner = secrets.choice(tuple(db.get_accounts_ids_and_usernames().keys()))
+        create_new_block(db, from_id, to_id, amount, miner, print_steps = True)
 
     elif answer == "Check Block Chain Validity":
         check_chain_validity(check_all = True)
-        input()
+
+    elif answer == "Show Latest blocks":
+        while True:
+            try:
+                amount_blocks = int(input("How many blocks do you wish to see? "))
+                break
+            except ValueError as e:
+                pass
+
+        os.system(clear_command)
+
+        count = 1
+        for block in db.get_all_blocks(id_order_asc=False):
+            print(f"Block Number {block['id']}")                  
+            print(f"Previous Hash: {block['previous_hash']}")
+            print(f"From {block['from_id']}")
+            print(f"To {block['to_id']}")
+            print(f"Amount: {block['amount']} PisitiCoins")
+            print(f"Mined By {block['miner_id']}")
+            print(f"Miner Reward: {block['miner_reward']} PisitiCoins")
+            print(f"Nonce: {block['nonce']}")
+            print(f"Hash: {block['hash']}", end = "\r\n\n")
+
+            if count >= amount_blocks: break
+            count += 1
+
 
     elif answer == "Quit": raise StopIteration()
 
+    input()
+    input()
     os.system(clear_command)
 
 
@@ -240,11 +173,11 @@ if __name__ == "__main__":
     # Changing the current directory in order to use a relative path to the database
     os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
-    file_name = 'db/PisitiCoin.json'
+    file_name = 'db/PisitiCoin.sqlite3'
 
     # Interface
     while True:
         try:
-            run_interface()
+            run_interface(file_name)
         except StopIteration as e:
             break

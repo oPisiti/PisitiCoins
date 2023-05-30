@@ -164,3 +164,4 @@ CodeRunner*.py
 *.pyc
 *.ods*
 *CodeRunner*
+*vscode*
