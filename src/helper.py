@@ -26,8 +26,6 @@ class BlockChain():
         # Configure the cursor to return rows as dictionaries - For get methods
         self.cursor.row_factory = sqlite3.Row
 
-        print("Connection OPENED")
-
         self.block_chain_columns = {
             "previous_hash",
             "from_id",
@@ -44,8 +42,6 @@ class BlockChain():
         # Close the cursor and the database connection
         self.cursor.close()
         self.conn.close()
-
-        print("Connection CLOSED")
 
 
     def check_chain_validity(self, check_amount: int) -> int:
@@ -299,26 +295,6 @@ class BlockChain():
         self.conn.commit()
 
 
-    def assert_sqlite3_open(func):
-        """ 
-        Makes sure a variable exists.
-        Raises AssertionError otherwise
-        """
-
-        def wrapper(*args, **kwargs):
-            if (conn_var_name not in locals()) and (conn_var_name not in globals()):
-                raise AssertionError(f"No variable called '{conn_var_name}' exists")
-
-            if not isinstance(conn_var_name, sqlite3.Connection):
-                raise AssertionError(f"The variable {conn_var_name} does not correspond to a sqlite3 database file")
-
-            value = func(*args, **kwargs)
-
-            return value
-
-        return wrapper
-
-
 class Block():
     def __init__(self, db: BlockChain, block_info: dict) -> None:
         """
@@ -434,7 +410,6 @@ class Block():
 
         self.block_has_been_mined = True
                
-
 
 if __name__ == '__main__':
     db = BlockChain("db/PisitiCoin.sqlite3")
