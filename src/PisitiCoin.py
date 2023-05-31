@@ -7,7 +7,8 @@ from helper import *
 from OptionsMenu import *
 
 
-def create_new_block(db: Database, from_id: str, to_id: str, amount: float, miner: str, print_steps = False) -> Block:
+# Change parameters into dictionary
+def create_new_block(db: BlockChain, from_id: str, to_id: str, amount: float, miner: str, print_steps = False) -> Block:
     """ Creates and chains a new block if possible """
 
     from_balance = db.get_account_balance(from_id)
@@ -21,53 +22,16 @@ def create_new_block(db: Database, from_id: str, to_id: str, amount: float, mine
     # Able to create a block
     else:
         block_info = {
-            "from_id":          from_id,
-            "to_id":            to_id,
-            "amount":        amount,
-            "miner_id":         miner,
+            "from_id":  from_id,
+            "to_id":    to_id,
+            "amount":   amount,
+            "miner_id": miner,
         }
 
         new_block = Block(db, block_info)
 
         new_block.mine_block(print_steps = print_steps)
         new_block.chain_block(db)
-
-
-def check_chain_validity(check_last = 10, check_all = False) -> None: 
-    """ 
-    Rehashes every block, in order, to determine if and where is has been altered.
-    Prints the block number where an inconsistency has been detected.
-    """
-
-    with open('PisitiCoin.json') as block_json:
-        read_chain = json.load(block_json)
-        chain = read_chain["BlockChain"]
-        size = len(chain)
-        start = size - check_last
-
-        if check_all:
-            start = 0
-
-        if start < 0:
-            start = 0
-
-        valid = True
-        for i in range(start, size):
-            message = det_string(chain[i]['previous hash'], chain[i]['id'], chain[i]['from'], chain[i]['to'], chain[i]['amount'], chain[i]['miner'], chain[i]['miner reward'])   
-            message += hex(chain[i]['nonce'])  
-
-            this_hash = "0x" + SHA256(message)
-
-            if this_hash != chain[i]['hash']:
-                print(f"Inconsistency located in block {i}")
-                print(f"Hash: {this_hash}")
-                valid = False
-                break
-            
-        if valid:
-            print(f"All blocks are valid!")
-            print("")
-
 
 def run_interface(db_path: str) -> None:
     """ Runs the main interface"""
@@ -87,7 +51,7 @@ def run_interface(db_path: str) -> None:
     os.system(clear_command)
 
     # Creating a connection to the database
-    db = Database(db_path)
+    db = BlockChain(db_path)
     accounts = db.get_accounts_ids_and_usernames()
     accounts_ids = tuple(accounts.keys())
 
@@ -134,7 +98,28 @@ def run_interface(db_path: str) -> None:
         create_new_block(db, from_id, to_id, amount, miner, print_steps = True)
 
     elif answer == "Check Block Chain Validity":
-        check_chain_validity(check_all = True)
+        while True:
+            amount_blocks = input("How many blocks do you wish to verify? ('a' for all) ")
+            
+            # If all
+            if amount_blocks.lower() == "a": 
+                amount_blocks = -1
+            
+            try:
+                # If number
+                amount_blocks = int(amount_blocks)
+                break
+
+            except ValueError as e:
+                pass
+
+        os.system(clear_command)
+
+        error_on_block_id = db.check_chain_validity(amount_blocks)
+
+        if error_on_block_id is None: print("Blockchain is healthy")
+        else:                         print(f"Block with id {error_on_block_id} is broken")
+
 
     elif answer == "Show Latest blocks":
         while True:

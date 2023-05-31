@@ -3,7 +3,7 @@ import sqlite3
 
 from SHA256 import *
 
-class Database():
+class BlockChain():
     def __init__(self, db_path: str, path_is_relative = True) -> None:
         # Changing the current directory in order to use a relative path to the database
         if path_is_relative:
@@ -39,6 +39,7 @@ class Database():
             "hash"        
         }
 
+
     def __del__(self) -> None:
         # Close the cursor and the database connection
         self.cursor.close()
@@ -47,18 +48,70 @@ class Database():
         print("Connection CLOSED")
 
 
+    def check_chain_validity(self, check_amount: int) -> int:
+        """
+        Checks a certain amount of blocks.
+        Returns the block id in which an inconsistency has been found.
+        Returns None if none was found.
+        check_amount:
+            - If >=0: Checks start at block (n - check-amount - 1)
+            - If < 0: Checks every block, starting with the first
+        """
+
+        # List of blocks ids to be checked
+        block_id_tuple = self.get_blocks_ids()
+        if   check_amount > 0: block_id_tuple = block_id_tuple[-check_amount::]
+        elif check_amount == 0: return None
+
+        # Hashing each block by passing their data into a tmp block
+        tmp_data = {
+            "from_id": None,
+            "to_id": None,
+            "amount": None,
+            "miner_id": None
+            }
+
+        tmp_block = Block(self, tmp_data)
+
+        # The tmp block's data is overwritten with db data. Nice little hack :)
+        for block_id in block_id_tuple:
+            tmp_block.block = self.get_block_by_id(block_id)
+            message = tmp_block.det_full_message_to_hash(hex(tmp_block.block["nonce"]))
+            block_hash = "0x" + SHA256(message)
+
+            if block_hash != tmp_block.block["hash"]: return block_id
+        
+        return None
+
+
     def get_block_by_id(self, block_id: int) -> dict:
         """ Returns a dictionary containing all the data of a block """
 
         self.cursor.execute(
-        """
-        SELECT * 
-          FROM block_chain bc 
-         WHERE id = ?
-        """,
-        (block_id,))
+            """
+            SELECT * 
+            FROM block_chain bc 
+            WHERE id = ?
+            """,
+            (block_id,)
+        )
 
         return dict(self.cursor.fetchone())
+
+
+    def get_blocks_ids(self) -> tuple:
+        """
+        Returns a tuple containing the ids of the blocks, in order
+        """
+
+        self.cursor.execute(
+            """
+            SELECT id 
+            FROM block_chain bc 
+            """
+        )
+
+        return tuple(a[0] for a in self.cursor.fetchall())
 
 
     def get_all_blocks(self, id_order_asc = True) -> dict:
@@ -67,13 +120,7 @@ class Database():
         Queries one block at a time and in order of id.
         """
 
-        self.cursor.execute(
-        """
-        SELECT id 
-          FROM block_chain bc 
-        """)
-
-        blocks_id_list = [a[0] for a in self.cursor.fetchall()]
+        blocks_id_list = self.get_blocks_ids()
 
         # Reversing the ids order
         if not id_order_asc: blocks_id_list = blocks_id_list[::-1]
@@ -81,12 +128,13 @@ class Database():
         # Queries one block at a time. Less RAM usage
         for i in blocks_id_list:
             self.cursor.execute(
-            """
-            SELECT * 
-              FROM block_chain bc 
-             WHERE id = ?
-            """,
-            (i,))
+                """
+                SELECT * 
+                FROM block_chain bc 
+                WHERE id = ?
+                """,
+                (i,)
+            )
 
             yield dict(self.cursor.fetchone())
 
@@ -95,10 +143,11 @@ class Database():
         """ Returns a dict {id:username} containing every account id and username in the "accounts" table """
 
         self.cursor.execute(
-        """
-        SELECT id, username 
-          FROM accounts
-        """)
+            """
+            SELECT id, username 
+            FROM accounts
+            """
+        )
 
         return dict(self.cursor.fetchall())
 
@@ -107,10 +156,11 @@ class Database():
         """ Returns a dict containing every account in the "accounts" table """
 
         self.cursor.execute(
-        """
-        SELECT * 
-          FROM accounts
-        """)
+            """
+            SELECT * 
+            FROM accounts
+            """
+        )
 
         return dict(self.cursor.fetchall())
 
@@ -122,12 +172,12 @@ class Database():
         """
 
         self.cursor.execute(
-        """
-        SELECT balance 
-          FROM accounts
-         WHERE id = ?
-        """,
-        (account_id,)
+            """
+            SELECT balance 
+            FROM accounts
+            WHERE id = ?
+            """,
+            (account_id,)
         )
 
         try:
@@ -151,7 +201,7 @@ class Database():
                 OR miner_id = ?
             """,
             (account_id, account_id, account_id)
-            )
+        )
 
         transactions = [dict(item) for item in self.cursor.fetchall()]
         
@@ -182,15 +232,45 @@ class Database():
             self.set_user_balance(account_id, balance)
 
 
+    def remine_block(self, block_id: int) -> None:
+        """
+        Remines a block, changing the database in place
+        """
+
+        dummy_data = {
+            "from_id":  None,
+            "to_id":    None,
+            "amount":   None,
+            "miner_id": None
+        }
+
+        tmp_block = Block(self, dummy_data)
+
+        tmp_block.block = db.get_block_by_id(block_id)
+        tmp_block.mine_block()
+
+        self.cursor.execute(
+            """
+            UPDATE block_chain 
+               SET hash = ?, 
+                   nonce = ?
+             WHERE id = ? 
+            """,
+            (tmp_block.block["hash"], tmp_block.block["nonce"], block_id) 
+        )
+
+        self.conn.commit()
+
+
     def set_user_balance(self, account_id: str, balance: float) -> None:    
 
         self.cursor.execute(
-        """
-        UPDATE accounts
-           SET balance = ?
-         WHERE id = ?
-        """,
-        (balance, account_id)
+            """
+            UPDATE accounts
+            SET balance = ?
+            WHERE id = ?
+            """,
+            (balance, account_id)
         )
 
         self.conn.commit()
@@ -209,11 +289,11 @@ class Database():
         # This will not be susceptible to sql injection attacks.
         # It is done here because "Parameter markers can be used only for values", as explained in https://stackoverflow.com/questions/13880786/python-sqlite3-string-variable-in-execute
         self.cursor.execute(
-        """
-        INSERT INTO block_chain """ + str(tuple(block.keys())) + """
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?);
-        """,
-        list(block.values())
+            """
+            INSERT INTO block_chain """ + str(tuple(block.keys())) + """
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+            """,
+            list(block.values())
         )
 
         self.conn.commit()
@@ -240,9 +320,7 @@ class Database():
 
 
 class Block():
-    # TODO: The block id should be determined by the database itself
-    # Also, the previous hash should be determined by a query
-    def __init__(self, db: Database, block_info: dict) -> None:
+    def __init__(self, db: BlockChain, block_info: dict) -> None:
         """
         Creates a Block object
         Database connection parameter necessary in order to determine the previous block's hash
@@ -271,7 +349,6 @@ class Block():
                 """
                 )
 
-
         # Setting up the block
         self.block = block_info.copy() 
         self.block["miner_reward"] = self.miner_reward
@@ -280,6 +357,45 @@ class Block():
             self.block["previous_hash"]     = b["hash"]
             break
 
+
+    def chain_block(self, db: BlockChain) -> None:
+        """ 
+        Adds a block to the chain
+        Raises KeyError if block has not been mined yet
+        """
+
+        # The block needs to have been mined
+        if not self.block_has_been_mined:
+            raise KeyError("Block has not been mined")
+
+        db.set_block(self.block)
+      
+
+    def det_full_message_to_hash(self, nonce: str, base_message = None) -> str:
+        """
+        Returns the full message to be hashed, which, in turn, determines the block's hash.
+        The optional base_message parameter is used for block mining, when
+        only the nonce changes every iteration.
+        If not provided, the method det_partial_string_to_hash() is called
+        """
+
+        if base_message is None: base_message = self.det_partial_string_to_hash()
+
+        return nonce + base_message
+
+
+    def det_partial_string_to_hash(self) -> str:
+        """
+        Returns a partial string containing the block's data
+        """
+
+        return  self.block["previous_hash"][2:] + \
+                self.block["from_id"][2:] + \
+                self.block["to_id"][2:] + \
+                str(self.block["amount"]) + \
+                self.block["miner_id"][2:] + \
+                str(self.block["miner_reward"])
+ 
 
     def mine_block(self, print_steps = False) -> None:        
         """ 
@@ -298,7 +414,7 @@ class Block():
         while True:
             if print_steps: print(f"Trying nonce {nonce}", end = "\r")
 
-            message = base_message + hex(nonce)
+            message = self.det_full_message_to_hash(hex(nonce), base_message = base_message)
             this_hash = SHA256(message)
             
             if this_hash[0 : self.difficulty] != compare:                
@@ -317,33 +433,8 @@ class Block():
         self.block["nonce"]        = nonce
 
         self.block_has_been_mined = True
-
-
-    def chain_block(self, db: Database) -> None:
-        """ 
-        Adds a block to the chain
-        Raises KeyError if block has not been mined yet
-        """
-
-        # The block needs to have been mined
-        if not self.block_has_been_mined:
-            raise KeyError("Block has not been mined")
-
-        db.set_block(self.block)
-      
-                
-    def det_partial_string_to_hash(self) -> str:
-        """
-        Returns a partial string containing the block's data
-        """
-
-        return  self.block["previous_hash"][2:] + \
-                self.block["from_id"][2:] + \
-                self.block["to_id"][2:] + \
-                format(self.block["amount"], '#066x')[2:] + \
-                self.block["miner_id"][2:] + \
-                format(self.block["miner_reward"], '#066x')[2:] 
+               
 
 
 if __name__ == '__main__':
-    pass
+    db = BlockChain("db/PisitiCoin.sqlite3")
