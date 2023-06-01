@@ -191,8 +191,14 @@ def run_interface(db_path: str) -> None:
 
     elif answer == "Show Latest blocks":
         while True:
+            amount_blocks = input("How many blocks do you wish to see? ('a' for all) ")
+            
+            # If all
+            if amount_blocks.lower() == "a": 
+                amount_blocks = len(db.get_blocks_ids())
+
             try:
-                amount_blocks = int(input("How many blocks do you wish to see? "))
+                amount_blocks = int(amount_blocks)
                 break
             except ValueError as e:
                 pass
