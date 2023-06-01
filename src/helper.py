@@ -245,6 +245,7 @@ class BlockChain():
         tmp_block.block = db.get_block_by_id(block_id)
         tmp_block.mine_block()
 
+        # Updating database
         self.cursor.execute(
             """
             UPDATE block_chain 
@@ -306,9 +307,9 @@ class Block():
         self.block_has_been_mined = False
 
         # Constants
-        self.difficulty    = 2
-        self.miner_reward  = 10000
-        self.clear_command = "cls" if os.name == "nt" else "clear"
+        self.difficulty: int      = 2
+        self.miner_reward: float  = 10000.0
+        self.clear_command: str   = "cls" if os.name == "nt" else "clear"
 
         required_keys = (
             "from_id",
@@ -330,7 +331,7 @@ class Block():
         self.block["miner_reward"] = self.miner_reward
 
         for b in db.get_all_blocks(id_order_asc = False):
-            self.block["previous_hash"]     = b["hash"]
+            self.block["previous_hash"] = b["hash"]
             break
 
 
@@ -375,7 +376,7 @@ class Block():
 
     def mine_block(self, print_steps = False) -> None:        
         """ 
-        Returns the hash of a block.
+        Calculates and sets the hash of a block.
         This method determines the order of bytes in hash input.
         """
 
@@ -405,11 +406,12 @@ class Block():
                 break
 
         # Writing info into block
-        self.block["hash"]         = "0x" + this_hash
-        self.block["nonce"]        = nonce
+        self.block["hash"]  = "0x" + this_hash
+        self.block["nonce"] = nonce
 
         self.block_has_been_mined = True
                
 
 if __name__ == '__main__':
     db = BlockChain("db/PisitiCoin.sqlite3")
+    db.update_all_balances()

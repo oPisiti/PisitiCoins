@@ -76,7 +76,7 @@ def run_interface(db_path: str) -> None:
     # Constants
     os.environ["PRINT_STEPS"] = "True"
 
-    options = ["See Account Balance", "Send PisitiCoins", "Check Block Chain Validity", "Show Latest blocks", "Quit"]
+    options = ["See Account Balance", "Update All balances", "Send PisitiCoins", "Check Block Chain Validity", "Show Latest blocks", "Quit"]
     
     # Determining the clear screen command based on the OS
     clear_command = "cls" if os.name == "nt" else "clear" 
@@ -102,11 +102,17 @@ def run_interface(db_path: str) -> None:
         print(f"Account {accounts[answer]} ({answer}) has {acc_balance} PisitiCoins")
     
 
+    elif answer == "Update All balances":
+        os.system(clear_command)
+        print("Updating balances for all users... ", end="")
+        db.update_all_balances()
+        print("Done!")
+
+
     elif answer == "Send PisitiCoins":
         while True:
             greeting = "Choose your account"        
-            from_id = Op
-            tionsMenu(accounts_ids, greeting)
+            from_id = OptionsMenu(accounts_ids, greeting)
             from_id = extract_account_from_str(from_id)
 
             os.system(clear_command)
@@ -120,7 +126,7 @@ def run_interface(db_path: str) -> None:
             # Getting amount            
             while True:
                 try:                    
-                    amount = int(input("How many PisitiCoins to transfer? "))
+                    amount = float(input("How many PisitiCoins to transfer? "))
                     break
                 except ValueError as e: 
                     continue
@@ -136,12 +142,12 @@ def run_interface(db_path: str) -> None:
                 break
         
         # Getting random miner
-        miner = secrets.choice(tuple(db.get_accounts_ids_and_usernames().keys()))
+        miner_id = secrets.choice(tuple(db.get_accounts_ids_and_usernames().keys()))
         block_data = {
             "from_id":  from_id,
             "to_id":    to_id,
             "amount":   amount,
-            "miner_id": miner
+            "miner_id": miner_id
         }
 
         try:
@@ -155,6 +161,11 @@ def run_interface(db_path: str) -> None:
             print(f"Insufficient funds in account {from_id}. Aborting operation")
             print(f"Current balance: {db.get_account_balance(from_balance)} PisitiCoins")
 
+        
+        # Updating the balances of accounts involved in transaction
+        for _id in (from_id, to_id, miner_id):
+            db.update_user_balance(_id)
+
 
     elif answer == "Check Block Chain Validity":
         while True:
@@ -165,10 +176,8 @@ def run_interface(db_path: str) -> None:
                 amount_blocks = -1
             
             try:
-                # If number
                 amount_blocks = int(amount_blocks)
                 break
-
             except ValueError as e:
                 pass
 
