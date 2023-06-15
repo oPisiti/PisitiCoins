@@ -7,6 +7,31 @@ from helper import *
 from OptionsMenu import *
 
 
+class Globals:
+    """
+    Global variables
+    """
+
+    LOGGED_IN_AS = "None"
+
+
+class Colors:
+    """
+    Nice colors :)
+    """
+
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+    UPONELINE = '\033[F'
+
+
 def create_and_chain_block(db: BlockChain, block_data: dict) -> Block:
     """ 
     Creates and chains a new block if possible 
@@ -50,33 +75,65 @@ def create_and_chain_block(db: BlockChain, block_data: dict) -> Block:
         new_block.chain_block(db)
 
 
-def extract_account_from_str(string: str) -> str:
+def get_interface_greeting() -> str:
     """
-    Returns an account of a string.
-    Given a string 'username (account_id)', returns account_id.
-    account_id must be between two parenthesis
+    Returns updated greeting message
     """
 
-    return re.findall("\((.*)\)", string)[0]
+    return "\n" + \
+    "                          _____  _       _  _    _   _____        _        \n" + \
+    "                         |  __ \(_)     (_)| |  (_) / ____|      (_)       \n" + \
+    "                         | |__) |_  ___  _ | |_  _ | |      ___   _  _ __  \n" + \
+    "                         |  ___/| |/ __|| || __|| || |     / _ \ | || '_ \ \n" + \
+    "                         | |    | |\__ \| || |_ | || |____| (_) || || | | |\n" + \
+    "                         |_|    |_||___/|_| \__||_| \_____|\___/ |_||_| |_|\n" + \
+    "\n\n" + \
+    (f"{Colors.OKCYAN}Logged in as {Colors.BOLD}{Globals.LOGGED_IN_AS}{Colors.ENDC}\n" if Globals.LOGGED_IN_AS is not None else \
+     f"{Colors.FAIL}Not logged in{Colors.ENDC}\n")
+
+
+def get_interface_options() -> tuple:
+    """
+    Returns updated options
+    """
+
+    not_logged_in = (
+        "Log In",
+        "Sign Up",
+        "See Accounts Balances",
+        "Update All balances",
+        "Check Block Chain Validity",
+        "Fix Block Chain",
+        "Remine All Blocks",
+        "Show Latest blocks",
+        "Quit"
+    )
+
+    logged_in = (
+        "See Accounts Balances",
+        "Send PisitiCoins",
+        "Update All balances",
+        "Check Block Chain Validity",
+        "Fix Block Chain",
+        "Remine All Blocks",
+        "Show Latest blocks",
+        "Log Out",
+        "Quit"
+    )
+
+    if Globals.LOGGED_IN_AS is None: return not_logged_in
+    else:                            return logged_in
 
 
 def run_interface(db_path: str) -> None:
     """ Runs the main interface"""
 
-    greeting = "\n" + \
-    "       _____  _       _  _    _   _____        _        \n" + \
-    "      |  __ \(_)     (_)| |  (_) / ____|      (_)       \n" + \
-    "      | |__) |_  ___  _ | |_  _ | |      ___   _  _ __  \n" + \
-    "      |  ___/| |/ __|| || __|| || |     / _ \ | || '_ \ \n" + \
-    "      | |    | |\__ \| || |_ | || |____| (_) || || | | |\n" + \
-    "      |_|    |_||___/|_| \__||_| \_____|\___/ |_||_| |_|\n" + \
-    "\n\n" + \
-    "What do you wish to do?\n"
+    greeting = get_interface_greeting()
     
     # Constants
     os.environ["PRINT_STEPS"] = "True"
 
-    options = ["See Account Balance", "Update All balances", "Send PisitiCoins", "Check Block Chain Validity", "Show Latest blocks", "Quit"]
+    options = get_interface_options()
     
     # Determining the clear screen command based on the OS
     clear_command = "cls" if os.name == "nt" else "clear" 
