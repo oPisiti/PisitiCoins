@@ -35,6 +35,32 @@ class Colors:
     UPONELINE = '\033[F'
 
 
+def check_block_chain_validity(db: BlockChain) -> None:
+    """
+    BlockChain.check_chain_validity() call
+    """
+
+    while True:
+        amount_blocks = input("How many blocks do you wish to verify? ('a' for all) ")
+        
+        # If all
+        if amount_blocks.lower() == "a": 
+            amount_blocks = -1
+        
+        try:
+            amount_blocks = int(amount_blocks)
+            break
+        except ValueError as e:
+            pass
+
+    os.system(Globals.CLEAR_COMMAND)
+
+    error_on_block_id = db.check_chain_validity(amount_blocks)
+
+    if error_on_block_id is None: print("Blockchain is healthy")
+    else:                         print(f"Block with id {error_on_block_id} is broken")
+
+
 def create_and_chain_block(db: BlockChain, block_data: dict) -> Block:
     """ 
     Creates and chains a new block if possible 
@@ -129,6 +155,10 @@ def get_interface_options() -> tuple:
 
 
 def show_latest_blocks(db: BlockChain) -> None:
+    """
+    Pretty prints amount of blocks determined by user
+    """
+
     while True:
         amount_blocks = input("How many blocks do you wish to see? ('a' for all) ")
         
@@ -160,6 +190,17 @@ def show_latest_blocks(db: BlockChain) -> None:
         count += 1
 
 
+def update_all_balances(db: BlockChain) -> None:
+    """
+    Simple call of database for full balances update 
+    """
+
+    os.system(Globals.CLEAR_COMMAND)
+    print("Updating balances for all users... ", end="")
+    db.update_all_balances()
+    print("Done!")
+
+
 def run_interface(db_path: str) -> None:
     """ Runs the main interface"""
 
@@ -180,26 +221,7 @@ def run_interface(db_path: str) -> None:
     answer = OptionsMenu(options, greeting)
 
     match answer:
-        case "Check Block Chain Validity":
-            while True:
-                amount_blocks = input("How many blocks do you wish to verify? ('a' for all) ")
-                
-                # If all
-                if amount_blocks.lower() == "a": 
-                    amount_blocks = -1
-                
-                try:
-                    amount_blocks = int(amount_blocks)
-                    break
-                except ValueError as e:
-                    pass
-
-            os.system(Globals.CLEAR_COMMAND)
-
-            error_on_block_id = db.check_chain_validity(amount_blocks)
-
-            if error_on_block_id is None: print("Blockchain is healthy")
-            else:                         print(f"Block with id {error_on_block_id} is broken")
+        case "Check Block Chain Validity": check_block_chain_validity()
 
         case "Quit": raise StopIteration()
 
@@ -272,15 +294,9 @@ def run_interface(db_path: str) -> None:
             for _id in (from_id, to_id, miner_id):
                 db.update_user_balance(_id)
 
-        case "Show Latest blocks":
-            show_latest_blocks(db)
+        case "Show Latest blocks":  show_latest_blocks(db)
 
-        case "Update All balances":
-            os.system(Globals.CLEAR_COMMAND)
-            print("Updating balances for all users... ", end="")
-            db.update_all_balances()
-            print("Done!")
-
+        case "Update All balances": update_all_balances(db)
 
     input()
     input()
