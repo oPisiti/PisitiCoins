@@ -44,7 +44,7 @@ class BlockChain():
         self.conn.close()
 
 
-    def check_chain_validity(self, check_amount: int) -> int:
+    def check_chain_health(self, check_amount: int) -> int:
         """
         Checks a certain amount of blocks.
         Returns the block id in which an inconsistency has been found.

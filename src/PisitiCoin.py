@@ -35,9 +35,9 @@ class Colors:
     UPONELINE = '\033[F'
 
 
-def check_block_chain_validity(db: BlockChain) -> None:
+def check_block_chain_health(db: BlockChain) -> None:
     """
-    BlockChain.check_chain_validity() call
+    BlockChain.check_chain_health() call
     """
 
     while True:
@@ -55,7 +55,7 @@ def check_block_chain_validity(db: BlockChain) -> None:
 
     os.system(Globals.CLEAR_COMMAND)
 
-    error_on_block_id = db.check_chain_validity(amount_blocks)
+    error_on_block_id = db.check_chain_health(amount_blocks)
 
     if error_on_block_id is None: print("Blockchain is healthy")
     else:                         print(f"Block with id {error_on_block_id} is broken")
@@ -131,7 +131,7 @@ def get_interface_options() -> tuple:
         "Sign Up",
         "See Accounts Balances",
         "Update All balances",
-        "Check Block Chain Validity",
+        "Check Block Chain health",
         "Fix Block Chain",
         "Remine All Blocks",
         "Show Latest blocks",
@@ -142,7 +142,7 @@ def get_interface_options() -> tuple:
         "See Accounts Balances",
         "Send PisitiCoins",
         "Update All balances",
-        "Check Block Chain Validity",
+        "Check Block Chain health",
         "Fix Block Chain",
         "Remine All Blocks",
         "Show Latest blocks",
@@ -221,7 +221,7 @@ def run_interface(db_path: str) -> None:
     answer = OptionsMenu(options, greeting)
 
     match answer:
-        case "Check Block Chain Validity": check_block_chain_validity()
+        case "Check Block Chain health": check_block_chain_health()
 
         case "Quit": raise StopIteration()
 
