@@ -7,6 +7,7 @@ from passlib.hash import pbkdf2_sha256
 
 from helper import *
 from OptionsMenu import *
+from getpass import getpass
 
 
 class Globals:
@@ -14,8 +15,10 @@ class Globals:
     Global variables
     """
 
-    CLEAR_COMMAND = "cls" if os.name == "nt" else "clear"
-    LOGGED_IN_AS = "None"
+    CLEAR_COMMAND           = "cls" if os.name == "nt" else "clear"
+    LOGGED_IN_AS            = None
+    PBKDF2_SHA256_SALT_SIZE = 16
+    PBKDF2_SHA256_ROUNDS    = 10000
 
 
 class Colors:
@@ -33,6 +36,20 @@ class Colors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
     UPONELINE = '\033[F'
+
+
+def authenticate_user(db: BlockChain, password: str) -> None:
+    """
+    Authenticates a user against a sqlite3 connection given a password.
+    Uses PBKDF2.
+    Sets the account's id into Globals.LOGGED_IN_AS if match found.   
+    """
+
+    # TODO: Need to take in the salt from db into consideration
+    for acc_id in db.get_accounts_ids_and_usernames().keys():
+        if pbkdf2_sha256.verify(password, acc_id):
+            Globals.LOGGED_IN_AS = acc_id
+            return
 
 
 def check_block_chain_health(db: BlockChain) -> None:
@@ -104,6 +121,44 @@ def create_and_chain_block(db: BlockChain, block_data: dict) -> Block:
         new_block.chain_block(db)
 
 
+def log_in(db: BlockChain) -> None:
+    """ Prompts for passphrase and attempts to authenticate against a db """
+
+    while True:
+        os.system(clear_command)
+        passphrase = getpass.getpass(prompt = "Passphrase: ")      
+
+        # Filtering out invalid passphrases
+        if passphrase == "":
+            print("Invalid passphrase. Please try again\n")
+            continue
+
+        break
+
+    authenticate_user(db, passphrase)
+
+
+def log_out(*args) -> None:
+    """
+    Logs user out by setting Globals.LOGGED_IN_AS to None.
+    Every argument is IGNORED. 
+    This is done for simplicity.
+    """
+
+    Globals.LOGGED_IN_AS = None
+
+
+def get_all_accounts_pretty(db: BlockChain) -> tuple:
+    """
+    Returns a pretty formatted tuple of strings with usernames and ids for all users
+    """
+
+    accounts = db.get_accounts_ids_and_usernames()
+    max_len = max([len(username) for username in accounts.values()])
+    
+    return tuple(f"{username}" + " " * (max_len + 1 - len(username)) + f"({_id})" for _id, username in accounts.items())
+
+
 def get_interface_greeting() -> str:
     """
     Returns updated greeting message
@@ -154,6 +209,34 @@ def get_interface_options() -> tuple:
     else:                            return logged_in
 
 
+def print_accounts_balances(db: BlockChain, accounts_pretty: tuple) -> None:
+    """
+    Prompts for an account and pretty prints its balance
+    """
+
+    greeting = "Choose an account"        
+    answer = OptionsMenu(accounts_pretty, greeting)
+
+    # accounts_ids is a tuple that contains username and id.
+    # Must filter only id
+    acc_id = re.findall("\((.*)\)", answer)[0].rstrip()
+
+    # If simply print answer, there may be too many white spaces between username
+    # and account id.
+    # Will filter username out and create new string to print
+    username = re.findall("(^.*)\(", answer)
+    try:
+        username = username[0].rstrip() + " "
+    except IndexError as e:
+        username = ""
+
+    corrected_username_and_id = username + acc_id
+    
+    acc_balance = db.get_account_balance(acc_id)
+    os.system(Globals.CLEAR_COMMAND)
+    print(f"Account {Colors.BOLD}{corrected_username_and_id}{Colors.ENDC} has {Colors.BOLD}P$ {acc_balance}{Colors.ENDC}")
+
+
 def show_latest_blocks(db: BlockChain) -> None:
     """
     Pretty prints amount of blocks determined by user
@@ -190,6 +273,24 @@ def show_latest_blocks(db: BlockChain) -> None:
         count += 1
 
 
+def sign_up(db: BlockChain) -> None:
+    """
+    Creates a user based on a passphrase given by the user.
+    Uses passlib.hash.pbkdf2_sha256 to derive the hash to be stored in the database.
+    Uses Globals.PBKDF2_SHA256_SALT_SIZE and Globals.PBKDF2_SHA256_ROUNDS variables
+    """
+
+    username = input("Username (Optional): ")
+
+    while True:
+        passphrase = getpass("Passphrase: ")
+        if passphrase != "": break
+
+    passphrase_hash = pbkdf2_sha256.using(salt_size = Globals.PBKDF2_SHA256_SALT_SIZE, rounds = Globals.PBKDF2_SHA256_ROUNDS).hash(passphrase)
+
+    db.set_new_user(pw_hash, username)
+
+
 def update_all_balances(db: BlockChain) -> None:
     """
     Simple call of database for full balances update 
@@ -209,44 +310,38 @@ def run_interface(db_path: str) -> None:
     # Constants
     os.environ["PRINT_STEPS"] = "True"
 
-    options = get_interface_options()
-    
+    options = get_interface_options()    
     os.system(Globals.CLEAR_COMMAND)
 
     # Creating a connection to the database
     db = BlockChain(db_path)
-    accounts = db.get_accounts_ids_and_usernames()
-    accounts_ids = tuple(f"{username} ({_id})" for _id, username in accounts.items())
+    pretty_accounts = get_all_accounts_pretty(db)
 
     answer = OptionsMenu(options, greeting)
 
     match answer:
-        case "Check Block Chain health": check_block_chain_health()
+        case "Check Block Chain health": check_block_chain_health(db)
+
+        case "Log In": log_in()
+
+        case "Sign Up": sign_up()
+
+        case "Log Out": log_out(db)
 
         case "Quit": raise StopIteration()
 
-        case "See Accounts Balances":
-            greeting = "Choose an account"        
-            answer = OptionsMenu(accounts_ids, greeting)
-
-            # accounts_ids is a tuple that contains username and id.
-            # Must filter only id
-            answer = extract_account_from_str(answer)
-            
-            acc_balance = db.get_account_balance(answer)
-            os.system(Globals.CLEAR_COMMAND)
-            print(f"Account {accounts[answer]} ({answer}) has {acc_balance} PisitiCoins")
+        case "See Accounts Balances": print_accounts_balances(db, pretty_accounts)
         
         case "Send PisitiCoins":
             while True:
                 greeting = "Choose your account"        
-                from_id = OptionsMenu(accounts_ids, greeting)
+                from_id = OptionsMenu(pretty_accounts, greeting)
                 from_id = extract_account_from_str(from_id)
 
                 os.system(Globals.CLEAR_COMMAND)
 
                 greeting = "Choose the account you wish to transfer to"        
-                to_id = OptionsMenu(accounts_ids, greeting)
+                to_id = OptionsMenu(pretty_accounts, greeting)
                 to_id = extract_account_from_str(to_id)
 
                 os.system(Globals.CLEAR_COMMAND)
