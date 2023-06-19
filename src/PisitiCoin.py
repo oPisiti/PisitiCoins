@@ -125,7 +125,7 @@ def log_in(db: BlockChain) -> None:
     """ Prompts for passphrase and attempts to authenticate against a db """
 
     while True:
-        os.system(clear_command)
+        os.system(Globals.CLEAR_COMMAND)
         passphrase = getpass.getpass(prompt = "Passphrase: ")      
 
         # Filtering out invalid passphrases
@@ -280,6 +280,7 @@ def sign_up(db: BlockChain) -> None:
     Uses Globals.PBKDF2_SHA256_SALT_SIZE and Globals.PBKDF2_SHA256_ROUNDS variables
     """
 
+    os.system(Globals.CLEAR_COMMAND)
     username = input("Username (Optional): ")
 
     while True:
@@ -288,7 +289,12 @@ def sign_up(db: BlockChain) -> None:
 
     passphrase_hash = pbkdf2_sha256.using(salt_size = Globals.PBKDF2_SHA256_SALT_SIZE, rounds = Globals.PBKDF2_SHA256_ROUNDS).hash(passphrase)
 
-    db.set_new_user(pw_hash, username)
+    db.set_new_user(
+    {
+        "id": passphrase_hash,
+        "username": username    
+    }
+    )
 
 
 def update_all_balances(db: BlockChain) -> None:
@@ -322,9 +328,9 @@ def run_interface(db_path: str) -> None:
     match answer:
         case "Check Block Chain health": check_block_chain_health(db)
 
-        case "Log In": log_in()
+        case "Log In": log_in(db)
 
-        case "Sign Up": sign_up()
+        case "Sign Up": sign_up(db)
 
         case "Log Out": log_out(db)
 

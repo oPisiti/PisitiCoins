@@ -37,6 +37,9 @@ class BlockChain():
             "hash"        
         }
 
+        # Constants
+        self.INIT_BALANCE = 10_000
+
 
     def __del__(self) -> None:
         # Close the cursor and the database connection
@@ -80,74 +83,6 @@ class BlockChain():
         return None
 
 
-    def get_block_by_id(self, block_id: int) -> dict:
-        """ Returns a dictionary containing all the data of a block """
-
-        self.cursor.execute(
-            """
-            SELECT * 
-            FROM block_chain bc 
-            WHERE id = ?
-            """,
-            (block_id,)
-        )
-
-        return dict(self.cursor.fetchone())
-
-
-    def get_blocks_ids(self) -> tuple:
-        """
-        Returns a tuple containing the ids of the blocks, in order
-        """
-
-        self.cursor.execute(
-            """
-            SELECT id 
-            FROM block_chain bc 
-            """
-        )
-
-        return tuple(a[0] for a in self.cursor.fetchall())
-
-
-    def get_all_blocks(self, id_order_asc = True) -> dict:
-        """ 
-        Returns an iterator over all the blocks in the database.
-        Queries one block at a time and in order of id.
-        """
-
-        blocks_id_list = self.get_blocks_ids()
-
-        # Reversing the ids order
-        if not id_order_asc: blocks_id_list = blocks_id_list[::-1]
-
-        # Queries one block at a time. Less RAM usage
-        for i in blocks_id_list:
-            self.cursor.execute(
-                """
-                SELECT * 
-                FROM block_chain bc 
-                WHERE id = ?
-                """,
-                (i,)
-            )
-
-            yield dict(self.cursor.fetchone())
-
-
-    def get_accounts_ids_and_usernames(self) -> dict:
-        """ Returns a dict {id:username} containing every account id and username in the "accounts" table """
-
-        self.cursor.execute(
-            """
-            SELECT id, username 
-            FROM accounts
-            """
-        )
-
-        return dict(self.cursor.fetchall())
-
-
     def get_accounts(self) -> dict:
         """ Returns a dict containing every account in the "accounts" table """
 
@@ -182,6 +117,184 @@ class BlockChain():
             raise LookupError(f"No account with id '{account_id}' exists")
         
         return balance["balance"]
+
+
+    def get_accounts_ids_and_usernames(self) -> dict:
+        """ Returns a dict {id:username} containing every account id and username in the "accounts" table """
+
+        self.cursor.execute(
+            """
+            SELECT id, username 
+            FROM accounts
+            """
+        )
+
+        return dict(self.cursor.fetchall())
+
+
+    def get_all_blocks(self, id_order_asc = True) -> dict:
+        """ 
+        Returns an iterator over all the blocks in the database.
+        Queries one block at a time and in order of id.
+        """
+
+        blocks_id_list = self.get_blocks_ids()
+
+        # Reversing the ids order
+        if not id_order_asc: blocks_id_list = blocks_id_list[::-1]
+
+        # Queries one block at a time. Less RAM usage
+        for i in blocks_id_list:
+            self.cursor.execute(
+                """
+                SELECT * 
+                FROM block_chain bc 
+                WHERE id = ?
+                """,
+                (i,)
+            )
+
+            yield dict(self.cursor.fetchone())
+
+
+    def get_block_by_id(self, block_id: int) -> dict:
+        """ Returns a dictionary containing all the data of a block """
+
+        self.cursor.execute(
+            """
+            SELECT * 
+            FROM block_chain bc 
+            WHERE id = ?
+            """,
+            (block_id,)
+        )
+
+        return dict(self.cursor.fetchone())
+
+
+    def get_blocks_ids(self) -> tuple:
+        """
+        Returns a tuple containing the ids of the blocks, in order
+        """
+
+        self.cursor.execute(
+            """
+            SELECT id 
+            FROM block_chain bc 
+            """
+        )
+
+        return tuple(a[0] for a in self.cursor.fetchall())
+
+
+    def remine_block(self, block_id: int) -> None:
+        """
+        Remines a block, changing the database in place
+        """
+
+        dummy_data = {
+            "from_id":  None,
+            "to_id":    None,
+            "amount":   None,
+            "miner_id": None
+        }
+
+        tmp_block = Block(self, dummy_data)
+
+        tmp_block.block = db.get_block_by_id(block_id)
+        tmp_block.mine_block()
+
+        # Updating database
+        self.cursor.execute(
+            """
+            UPDATE block_chain 
+               SET hash = ?, 
+                   nonce = ?
+             WHERE id = ? 
+            """,
+            (tmp_block.block["hash"], tmp_block.block["nonce"], block_id) 
+        )
+
+        self.conn.commit()
+
+
+    def set_block(self, block: dict) -> None:
+        """
+        Writes a block into the database.
+        """
+
+        # Checking the block keys
+        if set(block.keys()) != self.block_chain_columns:
+            raise KeyError(f"Provided block does not contain the correct keys. They are the following: {self.block_chain_columns}")
+
+        # INSERTING THE VARIABLES DIRECTLY INTO THE STRING IS ONLY OK BECAUSE THIS DOES NOT CONTAIN USER INPUT
+        # This will not be susceptible to sql injection attacks.
+        # It is done here because "Parameter markers can be used only for values", as explained in https://stackoverflow.com/questions/13880786/python-sqlite3-string-variable-in-execute
+        self.cursor.execute(
+            """
+            INSERT INTO block_chain """ + str(tuple(block.keys())) + """
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+            """,
+            list(block.values())
+        )
+
+        self.conn.commit()
+
+
+    def set_new_user(self, data: dict) -> None:
+        """
+        Sets a new user to the database.
+        The only required argument is "id". Raises AssertionError if not present. 
+        All supported arguments:
+        {
+            "id":       str,
+            "username": str,
+            "balance":  float
+        }
+
+        """
+
+        args = {
+            "id":       "",
+            "username": "",
+            "balance":  self.INIT_BALANCE
+        }
+
+        if "username" in data.keys(): args["username"] = data["username"]
+
+        # Assuring required keys
+        try:
+            args["id"] = data["id"]
+        except KeyError as e:
+            raise AssertionError("Required key 'id' missing")
+
+
+        self.cursor.execute(
+            """
+            INSERT INTO accounts (id, username, balance)
+            VALUES (?, ?, ?);
+            """,
+            (args["id"], args["username"], args["balance"])
+        )
+
+        self.conn.commit()
+
+
+    def set_user_balance(self, account_id: str, balance: float) -> None:    
+        """
+        Updates a user's account's balance
+        """
+
+        self.cursor.execute(
+            """
+            UPDATE accounts
+            SET balance = ?
+            WHERE id = ?
+            """,
+            (balance, account_id)
+        )
+
+        self.conn.commit()
 
 
     def update_user_balance(self, account_id: str) -> None:
@@ -227,73 +340,6 @@ class BlockChain():
         for account_id, balance in user_balances.items():
             self.set_user_balance(account_id, balance)
 
-
-    def remine_block(self, block_id: int) -> None:
-        """
-        Remines a block, changing the database in place
-        """
-
-        dummy_data = {
-            "from_id":  None,
-            "to_id":    None,
-            "amount":   None,
-            "miner_id": None
-        }
-
-        tmp_block = Block(self, dummy_data)
-
-        tmp_block.block = db.get_block_by_id(block_id)
-        tmp_block.mine_block()
-
-        # Updating database
-        self.cursor.execute(
-            """
-            UPDATE block_chain 
-               SET hash = ?, 
-                   nonce = ?
-             WHERE id = ? 
-            """,
-            (tmp_block.block["hash"], tmp_block.block["nonce"], block_id) 
-        )
-
-        self.conn.commit()
-
-
-    def set_user_balance(self, account_id: str, balance: float) -> None:    
-
-        self.cursor.execute(
-            """
-            UPDATE accounts
-            SET balance = ?
-            WHERE id = ?
-            """,
-            (balance, account_id)
-        )
-
-        self.conn.commit()
-
-
-    def set_block(self, block: dict) -> None:
-        """
-        Writes a block into the database.
-        """
-
-        # Checking the block keys
-        if set(block.keys()) != self.block_chain_columns:
-            raise KeyError(f"Provided block does not contain the correct keys. They are the following: {self.block_chain_columns}")
-
-        # INSERTING THE VARIABLES DIRECTLY INTO THE STRING IS ONLY OK BECAUSE THIS DOES NOT CONTAIN USER INPUT
-        # This will not be susceptible to sql injection attacks.
-        # It is done here because "Parameter markers can be used only for values", as explained in https://stackoverflow.com/questions/13880786/python-sqlite3-string-variable-in-execute
-        self.cursor.execute(
-            """
-            INSERT INTO block_chain """ + str(tuple(block.keys())) + """
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?);
-            """,
-            list(block.values())
-        )
-
-        self.conn.commit()
 
 
 class Block():
