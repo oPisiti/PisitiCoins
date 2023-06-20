@@ -134,6 +134,31 @@ def extract_id_from_string(string: str) -> str:
     return re.findall("\((.*)\)", string)[0].rstrip()
 
 
+def fix_block_chain(db: BlockChain) -> None:
+    """
+    Detects a chain inconsistency and fixes it
+    """
+
+    error_on_block_id = db.check_chain_health(-1)
+
+    if error_on_block_id is None: 
+        os.system(Globals.CLEAR_COMMAND)
+        print("Block Chain is healthy")
+        return 
+
+    blocks_ids = db.get_blocks_ids()
+    error_block_index = blocks_ids.index(error_on_block_id)
+
+    os.system(Globals.CLEAR_COMMAND)
+    for i in range(error_block_index, len(blocks_ids)):
+        print(f"Fixing block #{blocks_ids[i]}")
+
+        # Updating previous_hash field 
+        db.update_previous_hash_by_id(blocks_ids[i], blocks_ids)
+
+        db.remine_block(blocks_ids[i])
+
+
 def log_in(db: BlockChain) -> None:
     """ Prompts for passphrase and attempts to authenticate against a db """
 
@@ -221,7 +246,7 @@ def get_interface_options() -> tuple:
     )
 
     if Globals.LOGGED_IN_ACCOUNT_ID is None: return not_logged_in
-    else:                            return logged_in
+    else:                                    return logged_in
 
 
 def print_accounts_balances(db: BlockChain, accounts_pretty: tuple) -> None:
@@ -403,19 +428,23 @@ def run_interface(db_path: str) -> None:
     match answer:
         case "Check Block Chain health": check_block_chain_health(db)
 
+        case "Fix Block Chain": fix_block_chain(db)
+        
         case "Log In": log_in(db)
-
-        case "Sign Up": sign_up(db)
 
         case "Log Out": log_out(db)
 
         case "Quit": raise StopIteration()
+
+        case "Remine All Blocks":
 
         case "See Accounts Balances": print_accounts_balances(db, accounts_pretty)
         
         case "Send PisitiCoins":    send_pisiticoins(db, accounts_pretty)
 
         case "Show Latest blocks":  show_latest_blocks(db)
+
+        case "Sign Up": sign_up(db)
 
         case "Update All balances": update_all_balances(db)
 

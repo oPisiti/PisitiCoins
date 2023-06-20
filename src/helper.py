@@ -218,7 +218,7 @@ class BlockChain():
 
         tmp_block = Block(self, dummy_data)
 
-        tmp_block.block = db.get_block_by_id(block_id)
+        tmp_block.block = self.get_block_by_id(block_id)
         tmp_block.mine_block()
 
         # Updating database
@@ -314,6 +314,50 @@ class BlockChain():
         self.conn.commit()
 
 
+    def update_all_balances(self) -> None:
+        """ Update every user's balances """
+
+        user_balances = {id: 0 for id in self.get_accounts_ids_and_usernames().keys()}
+
+        # Summing up every user's transactions
+        for block in self.get_all_blocks():
+            user_balances[block["from_id"]]  -= block["amount"]
+            user_balances[block["to_id"]]    += block["amount"]
+            user_balances[block["miner_id"]] += block["miner_reward"]
+
+        # Writing to database
+        for account_id, balance in user_balances.items():
+            self.set_user_balance(account_id, balance)
+
+
+    def update_previous_hash_by_id(self, block_id: int, blocks_ids_tuple: tuple = None) -> None:
+        """
+        Updates the 'previous_hash' field of a block with the "hash" field of the block before it, given an id.
+
+        If this function is called multiple times in a row, a simple optimization is to pre calculate 'blocks_ids_tuple' by calling self.get_blocks_ids() and pass it as an argument to this function.
+
+        Otherwise, such method will be called every single time this one is called.
+        """
+
+        # Block 0 is special. 
+        # It it the always first block, so any value stands
+        if block_id == 0: return 
+
+        # Getting all the blocks' ids - May be provided as function argument
+        if blocks_ids_tuple is None: blocks_ids = self.get_blocks_ids()
+
+        previous_block_id = blocks_ids_tuple[blocks_ids_tuple.index(block_id)-1]
+
+        self.cursor.execute(
+            """
+            UPDATE block_chain 
+               SET previous_hash = ?
+             WHERE id = ?
+            """,
+            (self.get_block_by_id(previous_block_id)["hash"], block_id)
+        )
+
+
     def update_user_balance(self, account_id: str) -> None:
         """ Updates a user's balance by looping over every transaction """
 
@@ -339,23 +383,6 @@ class BlockChain():
             elif account_id == t["miner_id"]: account_balance += t["miner_reward"]
 
         self.set_user_balance(account_id, account_balance)
-
-
-    def update_all_balances(self) -> None:
-        """ Update every user's balances """
-
-        user_balances = {id: 0 for id in self.get_accounts_ids_and_usernames().keys()}
-
-        # Summing up every user's transactions
-        for block in self.get_all_blocks():
-            user_balances[block["from_id"]]  -= block["amount"]
-            user_balances[block["to_id"]]    += block["amount"]
-            user_balances[block["miner_id"]] += block["miner_reward"]
-
-        # Writing to database
-        for account_id, balance in user_balances.items():
-            self.set_user_balance(account_id, balance)
-
 
 
 class Block():
