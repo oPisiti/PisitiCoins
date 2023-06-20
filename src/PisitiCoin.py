@@ -39,6 +39,13 @@ class Colors:
     UPONELINE = '\033[F'
 
 
+class SpecialChars:
+    """ Special Chars """
+
+    CHECK_MARK = f"{Colors.OKGREEN}\u2713{Colors.ENDC}"
+    FAIL_MARK  = f"{Colors.FAIL}\u274C{Colors.ENDC}"
+
+
 def authenticate_user(db: BlockChain, password: str) -> None:
     """
     Authenticates a user against a sqlite3 connection given a password.
@@ -60,6 +67,8 @@ def check_block_chain_health(db: BlockChain) -> None:
     BlockChain.check_chain_health() call
     """
 
+    os.system(Globals.CLEAR_COMMAND)
+
     while True:
         amount_blocks = input("How many blocks do you wish to verify? ('a' for all) ")
         
@@ -78,7 +87,7 @@ def check_block_chain_health(db: BlockChain) -> None:
     error_on_block_id = db.check_chain_health(amount_blocks)
 
     if error_on_block_id is None: print("Blockchain is healthy")
-    else:                         print(f"Block with id {error_on_block_id} is broken")
+    else:                         print(f"Block {Colors.FAIL}#{error_on_block_id}{Colors.ENDC} is broken")
 
 
 def create_and_chain_block(db: BlockChain, block_data: dict) -> Block:
@@ -150,13 +159,15 @@ def fix_block_chain(db: BlockChain) -> None:
     error_block_index = blocks_ids.index(error_on_block_id)
 
     os.system(Globals.CLEAR_COMMAND)
+    print(f"Fixing blocks...")
     for i in range(error_block_index, len(blocks_ids)):
-        print(f"Fixing block #{blocks_ids[i]}")
 
         # Updating previous_hash field 
         db.update_previous_hash_by_id(blocks_ids[i], blocks_ids)
 
         db.remine_block(blocks_ids[i])
+
+        print(f"{SpecialChars.CHECK_MARK} #{blocks_ids[i]}")
 
 
 def log_in(db: BlockChain) -> None:
@@ -275,6 +286,26 @@ def print_accounts_balances(db: BlockChain, accounts_pretty: tuple) -> None:
     acc_balance = db.get_account_balance(acc_id)
     os.system(Globals.CLEAR_COMMAND)
     print(f"Account {Colors.BOLD}{corrected_username_and_id}{Colors.ENDC} has {Colors.BOLD}P$ {acc_balance}{Colors.ENDC}")
+
+
+def remine_all_blocks(db: BlockChain) -> None:
+    """
+    Remines all blocks, independently of their health state
+    """
+
+    blocks_ids = db.get_blocks_ids()
+
+    os.system(Globals.CLEAR_COMMAND)
+    print(f"Remining blocks...")
+    for _id in blocks_ids:
+        # Updating previous_hash field 
+        db.update_previous_hash_by_id(_id, blocks_ids)
+
+        db.remine_block(_id)
+
+        print(SpecialChars.CHECK_MARK + f" #{_id}")
+
+    print("Done!")
 
 
 def send_pisiticoins(db: BlockChain, accounts_pretty: tuple) -> None:
@@ -436,7 +467,7 @@ def run_interface(db_path: str) -> None:
 
         case "Quit": raise StopIteration()
 
-        case "Remine All Blocks":
+        case "Remine All Blocks": remine_all_blocks(db)
 
         case "See Accounts Balances": print_accounts_balances(db, accounts_pretty)
         

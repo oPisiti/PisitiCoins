@@ -474,11 +474,12 @@ class Block():
         nonce = 0
         compare = "0" * self.difficulty
 
-        os.system(self.clear_command)
+        if print_steps: os.system(self.clear_command)
 
         # Mining block
         while True:
-            if print_steps: print(f"Trying nonce {nonce}", end = "\r")
+            if print_steps: 
+                print(f"Trying nonce {nonce}", end = "\r")
 
             message = self.det_full_message_to_hash(hex(nonce), base_message = base_message)
             this_hash = SHA256(message)
@@ -486,8 +487,8 @@ class Block():
             if this_hash[0 : self.difficulty] != compare:                
                 nonce += 1
             else:
-                os.system(self.clear_command)
                 if print_steps: 
+                    os.system(self.clear_command)
                     print(f"Block MINED. Adding {self.block['miner_reward']} to {self.block['miner_id']} as miner reward")
                     print(f"Nonce: {nonce}")
                     print(f"Hash: {this_hash}")
