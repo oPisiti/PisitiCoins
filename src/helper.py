@@ -58,9 +58,10 @@ class BlockChain():
         """
 
         # List of blocks ids to be checked
-        block_id_tuple = self.get_blocks_ids()
-        if   check_amount > 0: block_id_tuple = block_id_tuple[-check_amount::]
+        block_id_tuple_full = self.get_blocks_ids()
+        if   check_amount > 0:  block_id_tuple = block_id_tuple_full[-check_amount::]
         elif check_amount == 0: return None
+        else:                   block_id_tuple = block_id_tuple_full
 
         # Hashing each block by passing their data into a tmp block
         tmp_data = {
@@ -72,13 +73,29 @@ class BlockChain():
 
         tmp_block = Block(self, tmp_data)
 
+        if block_id_tuple[0] == 0:
+            previous_block = self.get_block_by_id(block_id_tuple[0])
+        else:
+            previous_block = self.get_block_by_id(block_id_tuple_full[-(check_amount + 1)])
+
         # The tmp block's data is overwritten with db data. Nice little hack :)
-        for block_id in block_id_tuple:
+        for id_index, block_id in enumerate(block_id_tuple):
+
             tmp_block.block = self.get_block_by_id(block_id)
+
+            # Checking if the block's previous_hash is correct
+            if block_id != 0: 
+                if previous_block["hash"] != tmp_block.block["previous_hash"]: 
+                    return block_id
+
+            # Determining current block's full hash
             message = tmp_block.det_full_message_to_hash(hex(tmp_block.block["nonce"]))
             block_hash = "0x" + SHA256(message)
 
             if block_hash != tmp_block.block["hash"]: return block_id
+
+            # Updating previous block
+            previous_block = tmp_block.block.copy()
         
         return None
 
@@ -327,8 +344,7 @@ class BlockChain():
     def update_all_balances(self) -> None:
         """ Update every user's balances """
 
-        user_ids = tuple(self.get_accounts_ids_and_usernames().keys())
-        user_balances = {id: 0 for id in user_ids}
+        user_balances = {id: 0 for id in self.get_accounts_ids_and_usernames().keys()}
 
         # Summing up every user's transactions
         for block in self.get_all_blocks():

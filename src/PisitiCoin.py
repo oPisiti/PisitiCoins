@@ -124,6 +124,16 @@ def create_and_chain_block(db: BlockChain, block_data: dict) -> Block:
         new_block.chain_block(db)
 
 
+def extract_id_from_string(string: str) -> str:
+    """
+    Extracts passlib.hash.pbkdf2_sha256 hash from a string, if between parenthesis.
+    Example: "Luna   ($pbkdf2-sha256$10000$WGtNiTHmHGMsZUzJGYMQIg$bjHZlH6YI8wwfVaThD3LNrn5nd6VgLnG.xfFie1qRus)"
+    Returns "$pbkdf2-sha256$10000$WGtNiTHmHGMsZUzJGYMQIg$bjHZlH6YI8wwfVaThD3LNrn5nd6VgLnG.xfFie1qRus"
+    """
+
+    return re.findall("\((.*)\)", string)[0].rstrip()
+
+
 def log_in(db: BlockChain) -> None:
     """ Prompts for passphrase and attempts to authenticate against a db """
 
@@ -150,6 +160,7 @@ def log_out(*args) -> None:
     """
 
     Globals.LOGGED_IN_ACCOUNT_ID = None
+    Globals.LOGGED_IN_USERNAME   = None
 
 
 def get_all_accounts_pretty(db: BlockChain) -> tuple:
@@ -223,7 +234,7 @@ def print_accounts_balances(db: BlockChain, accounts_pretty: tuple) -> None:
 
     # accounts_ids is a tuple that contains username and id.
     # Must filter only id
-    acc_id = re.findall("\((.*)\)", answer)[0].rstrip()
+    acc_id = extract_id_from_string(answer)
 
     # If simply print answer, there may be too many white spaces between username
     # and account id.
@@ -239,6 +250,67 @@ def print_accounts_balances(db: BlockChain, accounts_pretty: tuple) -> None:
     acc_balance = db.get_account_balance(acc_id)
     os.system(Globals.CLEAR_COMMAND)
     print(f"Account {Colors.BOLD}{corrected_username_and_id}{Colors.ENDC} has {Colors.BOLD}P$ {acc_balance}{Colors.ENDC}")
+
+
+def send_pisiticoins(db: BlockChain, accounts_pretty: tuple) -> None:
+    """
+    Prompts user for information, creates a block and chains it.
+    Uses:
+        - Globals.LOGGED_IN_ACCOUNT_ID
+    """
+
+    while True:
+        os.system(Globals.CLEAR_COMMAND)
+
+        from_id = Globals.LOGGED_IN_ACCOUNT_ID
+
+        greeting = "Choose the account you wish to transfer to"        
+        to_id = OptionsMenu(accounts_pretty, greeting)
+        to_id = extract_id_from_string(to_id)
+
+        os.system(Globals.CLEAR_COMMAND)
+        
+        # Getting amount            
+        while True:
+            try:                    
+                amount = float(input("How many PisitiCoins to transfer? "))
+                break
+            except ValueError as e: 
+                continue
+            finally:                
+                os.system(Globals.CLEAR_COMMAND)
+
+        if amount < 0:
+            amount *= -1
+
+        greeting = f"You wish to transfer {amount} PisitiCoins from {from_id} to {to_id}, correct?"
+        options = ["Yes", "No"]
+        if OptionsMenu(options, greeting) == "Yes":
+            break
+    
+    # Getting random miner
+    miner_id = secrets.choice(tuple(db.get_accounts_ids_and_usernames().keys()))
+    block_data = {
+        "from_id":  from_id,
+        "to_id":    to_id,
+        "amount":   amount,
+        "miner_id": miner_id
+    }
+
+    try:
+        create_and_chain_block(db, block_data)
+        if os.environ["PRINT_STEPS"] == "True":
+            print("Transaction complete")
+
+    except ValueError as e:         
+        from_balance = block_data["from_id"]   
+        print()
+        print(f"Insufficient funds in account {from_id}. Aborting operation")
+        print(f"Current balance: {db.get_account_balance(from_balance)} PisitiCoins")
+
+    # Updating the balances of accounts involved in transaction
+    for _id in (from_id, to_id, miner_id):
+        db.update_user_balance(_id)
 
 
 def show_latest_blocks(db: BlockChain) -> None:
@@ -319,13 +391,12 @@ def run_interface(db_path: str) -> None:
     
     # Constants
     os.environ["PRINT_STEPS"] = "True"
-
     options = get_interface_options()    
     os.system(Globals.CLEAR_COMMAND)
 
     # Creating a connection to the database
     db = BlockChain(db_path)
-    pretty_accounts = get_all_accounts_pretty(db)
+    accounts_pretty = get_all_accounts_pretty(db)
 
     answer = OptionsMenu(options, greeting)
 
@@ -340,64 +411,9 @@ def run_interface(db_path: str) -> None:
 
         case "Quit": raise StopIteration()
 
-        case "See Accounts Balances": print_accounts_balances(db, pretty_accounts)
+        case "See Accounts Balances": print_accounts_balances(db, accounts_pretty)
         
-        case "Send PisitiCoins":
-            while True:
-                greeting = "Choose your account"        
-                from_id = OptionsMenu(pretty_accounts, greeting)
-                from_id = extract_account_from_str(from_id)
-
-                os.system(Globals.CLEAR_COMMAND)
-
-                greeting = "Choose the account you wish to transfer to"        
-                to_id = OptionsMenu(pretty_accounts, greeting)
-                to_id = extract_account_from_str(to_id)
-
-                os.system(Globals.CLEAR_COMMAND)
-                
-                # Getting amount            
-                while True:
-                    try:                    
-                        amount = float(input("How many PisitiCoins to transfer? "))
-                        break
-                    except ValueError as e: 
-                        continue
-                    finally:                
-                        os.system(Globals.CLEAR_COMMAND)
-
-                if amount < 0:
-                    amount *= -1
-
-                greeting = f"You wish to transfer {amount} PisitiCoins from {from_id} to {to_id}, correct?"
-                options = ["Yes", "No"]
-                if OptionsMenu(options, greeting) == "Yes":
-                    break
-            
-            # Getting random miner
-            miner_id = secrets.choice(tuple(db.get_accounts_ids_and_usernames().keys()))
-            block_data = {
-                "from_id":  from_id,
-                "to_id":    to_id,
-                "amount":   amount,
-                "miner_id": miner_id
-            }
-
-            try:
-                create_and_chain_block(db, block_data)
-                if os.environ["PRINT_STEPS"] == "True":
-                    print("Transaction complete")
-
-            except ValueError as e:         
-                from_balance = block_data["from_id"]   
-                print()
-                print(f"Insufficient funds in account {from_id}. Aborting operation")
-                print(f"Current balance: {db.get_account_balance(from_balance)} PisitiCoins")
-
-            
-            # Updating the balances of accounts involved in transaction
-            for _id in (from_id, to_id, miner_id):
-                db.update_user_balance(_id)
+        case "Send PisitiCoins":    send_pisiticoins(db, accounts_pretty)
 
         case "Show Latest blocks":  show_latest_blocks(db)
 
