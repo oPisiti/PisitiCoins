@@ -16,7 +16,8 @@ class Globals:
     """
 
     CLEAR_COMMAND           = "cls" if os.name == "nt" else "clear"
-    LOGGED_IN_AS            = None
+    LOGGED_IN_ACCOUNT_ID    = None
+    LOGGED_IN_USERNAME      = None
     PBKDF2_SHA256_SALT_SIZE = 16
     PBKDF2_SHA256_ROUNDS    = 10000
 
@@ -45,10 +46,12 @@ def authenticate_user(db: BlockChain, password: str) -> None:
     Sets the account's id into Globals.LOGGED_IN_AS if match found.   
     """
 
-    # TODO: Need to take in the salt from db into consideration
-    for acc_id in db.get_accounts_ids_and_usernames().keys():
+    ids_and_usernames = db.get_accounts_ids_and_usernames()
+
+    for acc_id in ids_and_usernames.keys():
         if pbkdf2_sha256.verify(password, acc_id):
-            Globals.LOGGED_IN_AS = acc_id
+            Globals.LOGGED_IN_ACCOUNT_ID = acc_id
+            Globals.LOGGED_IN_USERNAME   = ids_and_usernames[acc_id]
             return
 
 
@@ -126,11 +129,12 @@ def log_in(db: BlockChain) -> None:
 
     while True:
         os.system(Globals.CLEAR_COMMAND)
-        passphrase = getpass.getpass(prompt = "Passphrase: ")      
+        passphrase = getpass(prompt = "Passphrase: ")      
 
         # Filtering out invalid passphrases
         if passphrase == "":
             print("Invalid passphrase. Please try again\n")
+            input()
             continue
 
         break
@@ -145,7 +149,7 @@ def log_out(*args) -> None:
     This is done for simplicity.
     """
 
-    Globals.LOGGED_IN_AS = None
+    Globals.LOGGED_IN_ACCOUNT_ID = None
 
 
 def get_all_accounts_pretty(db: BlockChain) -> tuple:
@@ -172,7 +176,7 @@ def get_interface_greeting() -> str:
     "                         | |    | |\__ \| || |_ | || |____| (_) || || | | |\n" + \
     "                         |_|    |_||___/|_| \__||_| \_____|\___/ |_||_| |_|\n" + \
     "\n\n" + \
-    (f"{Colors.OKCYAN}Logged in as {Colors.BOLD}{Globals.LOGGED_IN_AS}{Colors.ENDC}\n" if Globals.LOGGED_IN_AS is not None else \
+    (f"{Colors.OKCYAN}Logged in as {Colors.BOLD}{Globals.LOGGED_IN_USERNAME} {Globals.LOGGED_IN_ACCOUNT_ID}{Colors.ENDC}\n" if Globals.LOGGED_IN_ACCOUNT_ID is not None else \
      f"{Colors.FAIL}Not logged in{Colors.ENDC}\n")
 
 
@@ -205,7 +209,7 @@ def get_interface_options() -> tuple:
         "Quit"
     )
 
-    if Globals.LOGGED_IN_AS is None: return not_logged_in
+    if Globals.LOGGED_IN_ACCOUNT_ID is None: return not_logged_in
     else:                            return logged_in
 
 

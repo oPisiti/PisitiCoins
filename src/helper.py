@@ -460,4 +460,3 @@ class Block():
 
 if __name__ == '__main__':
     db = BlockChain("db/PisitiCoin.sqlite3")
-    db.update_all_balances()
