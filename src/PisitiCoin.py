@@ -40,10 +40,8 @@ class Colors:
 
 
 class SpecialChars:
-    """ Special Chars """
-
-    CHECK_MARK = f"{Colors.OKGREEN}\u2713{Colors.ENDC}"
-    FAIL_MARK  = f"{Colors.FAIL}\u274C{Colors.ENDC}"
+    CHECK_MARK = f"{Colors.OKGREEN}\u2714{Colors.ENDC}"
+    FAIL_MARK  = f"{Colors.FAIL}\u2718{Colors.ENDC}"
 
 
 def authenticate_user(db: BlockChain, password: str) -> None:
@@ -133,6 +131,35 @@ def create_and_chain_block(db: BlockChain, block_data: dict) -> Block:
         new_block.chain_block(db)
 
 
+def delete_block(db: BlockChain) -> None:
+    """
+    Prompts for a block and deletes it from the database
+    """
+
+    message = "Which block do you wish to delete?"
+    
+    blocks_ids = list(db.get_blocks_ids())
+    error_on_block_id = db.check_chain_health(-1)
+    block_state = "\u2714"
+
+    # Adding check mark or cross to the start of the ids
+    for i in range(len(blocks_ids)):
+        if blocks_ids[i] == error_on_block_id: block_state = "\u2718"
+
+        blocks_ids[i] = block_state + " " + str(blocks_ids[i])
+
+
+    answer = OptionsMenu(blocks_ids, message)[2:]
+
+    message = f"Are you sure you wish to delete block {Colors.BOLD}{Colors.WARNING}#{answer}{Colors.ENDC}?"
+    is_sure = OptionsMenu(("Yes", "No"), message)
+
+    if is_sure == "Yes": 
+        db.delete_block(answer)
+        os.system(Globals.CLEAR_COMMAND)
+        input(f"Block {Colors.BOLD}#{answer}{Colors.ENDC} deleted")
+
+
 def extract_id_from_string(string: str) -> str:
     """
     Extracts passlib.hash.pbkdf2_sha256 hash from a string, if between parenthesis.
@@ -168,6 +195,8 @@ def fix_block_chain(db: BlockChain) -> None:
         db.remine_block(blocks_ids[i])
 
         print(f"{SpecialChars.CHECK_MARK} #{blocks_ids[i]}")
+        
+    print("Done!")
 
 
 def log_in(db: BlockChain) -> None:
@@ -188,11 +217,9 @@ def log_in(db: BlockChain) -> None:
     authenticate_user(db, passphrase)
 
 
-def log_out(*args) -> None:
+def log_out() -> None:
     """
     Logs user out by setting Globals.LOGGED_IN_AS to None.
-    Every argument is IGNORED. 
-    This is done for simplicity.
     """
 
     Globals.LOGGED_IN_ACCOUNT_ID = None
@@ -235,29 +262,73 @@ def get_interface_options() -> tuple:
     not_logged_in = (
         "Log In",
         "Sign Up",
-        "See Accounts Balances",
-        "Update All balances",
         "Check Block Chain health",
         "Fix Block Chain",
         "Remine All Blocks",
+        "See Accounts Balances",
         "Show Latest blocks",
+        "Update All balances",
+        "Delete Block",
         "Quit"
     )
 
     logged_in = (
-        "See Accounts Balances",
-        "Send PisitiCoins",
-        "Update All balances",
+        "Log Out",
         "Check Block Chain health",
         "Fix Block Chain",
         "Remine All Blocks",
+        "See Accounts Balances",
+        "Send PisitiCoins",
         "Show Latest blocks",
-        "Log Out",
+        "Update All balances",
+        "Delete Block",
         "Quit"
     )
 
     if Globals.LOGGED_IN_ACCOUNT_ID is None: return not_logged_in
     else:                                    return logged_in
+
+
+def pretty_print_block(block: dict) -> None:
+    """
+    Prints entirety of a block's data formatted.
+    
+    Raises KeyError if 'block' does not contain the following keys:
+        - "id"
+        - "previous_hash"
+        - "from_id"
+        - "to_id"
+        - "amount"
+        - "miner_id"
+        - "miner_reward"
+        - "nonce"
+        - "hash"   
+    """
+
+    required_keys = (
+        "id",
+        "previous_hash",
+        "from_id",
+        "to_id",
+        "amount",
+        "miner_id",
+        "miner_reward",
+        "nonce",
+        "hash"   
+    )
+
+    if required_keys != tuple(block.keys()):
+        raise KeyError(f"Mismatched keys. Required keys: {required_keys}")
+
+    print(f"Block {Colors.BOLD}#{block['id']}{Colors.ENDC}")                  
+    print(f"Previous Hash: {block['previous_hash']}")
+    print(f"From:          {block['from_id']}")
+    print(f"To:            {block['to_id']}")
+    print(f"Amount:        P$ {block['amount']}")
+    print(f"Mined By:      {block['miner_id']}")
+    print(f"Miner Reward:  P$ {block['miner_reward']}")
+    print(f"Nonce:         {block['nonce']}")
+    print(f"Hash:          {block['hash']}", end = "\r\n\n")
 
 
 def print_accounts_balances(db: BlockChain, accounts_pretty: tuple) -> None:
@@ -375,6 +446,7 @@ def show_latest_blocks(db: BlockChain) -> None:
     """
 
     while True:
+        os.system(Globals.CLEAR_COMMAND)
         amount_blocks = input("How many blocks do you wish to see? ('a' for all) ")
         
         # If all
@@ -390,16 +462,8 @@ def show_latest_blocks(db: BlockChain) -> None:
     os.system(Globals.CLEAR_COMMAND)
 
     count = 1
-    for block in db.get_all_blocks(id_order_asc=False):
-        print(f"Block {Colors.BOLD}#{block['id']}{Colors.ENDC}")                  
-        print(f"Previous Hash: {block['previous_hash']}")
-        print(f"From:          {block['from_id']}")
-        print(f"To:            {block['to_id']}")
-        print(f"Amount:        P$ {block['amount']}")
-        print(f"Mined By:      {block['miner_id']}")
-        print(f"Miner Reward:  P$ {block['miner_reward']}")
-        print(f"Nonce:         {block['nonce']}")
-        print(f"Hash:          {block['hash']}", end = "\r\n\n")
+    for block in db.get_all_blocks():
+        pretty_print_block(block)
 
         if count >= amount_blocks: break
         count += 1
@@ -458,26 +522,17 @@ def run_interface(db_path: str) -> None:
 
     match answer:
         case "Check Block Chain health": check_block_chain_health(db)
-
-        case "Fix Block Chain": fix_block_chain(db)
-        
-        case "Log In": log_in(db)
-
-        case "Log Out": log_out(db)
-
-        case "Quit": raise StopIteration()
-
-        case "Remine All Blocks": remine_all_blocks(db)
-
-        case "See Accounts Balances": print_accounts_balances(db, accounts_pretty)
-        
-        case "Send PisitiCoins":    send_pisiticoins(db, accounts_pretty)
-
-        case "Show Latest blocks":  show_latest_blocks(db)
-
-        case "Sign Up": sign_up(db)
-
-        case "Update All balances": update_all_balances(db)
+        case "Delete Block":             delete_block(db)
+        case "Fix Block Chain":          fix_block_chain(db)    
+        case "Log In":                   log_in(db)
+        case "Log Out":                  log_out()
+        case "Quit":                     raise StopIteration()
+        case "Remine All Blocks":        remine_all_blocks(db)
+        case "See Accounts Balances":    print_accounts_balances(db, accounts_pretty)    
+        case "Send PisitiCoins":         send_pisiticoins(db, accounts_pretty)
+        case "Show Latest blocks":       show_latest_blocks(db)
+        case "Sign Up":                  sign_up(db)
+        case "Update All balances":      update_all_balances(db)
 
     input()
     input()

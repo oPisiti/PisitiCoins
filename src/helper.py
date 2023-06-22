@@ -100,6 +100,23 @@ class BlockChain():
         return None
 
 
+    def delete_block(self, block_id: int) -> None:
+        """
+        Deletes a row from the database, given its id.
+        If no block with such id was found in the database, does nothing.
+        """
+
+        self.cursor.execute(
+            """
+            DELETE FROM block_chain 
+             WHERE id = ?
+            """,
+            (block_id, )
+        )
+
+        self.conn.commit()
+
+
     def get_accounts(self) -> dict:
         """ Returns a dict containing every account in the "accounts" table """
 
