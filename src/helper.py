@@ -2,6 +2,7 @@ import os
 import sqlite3
 
 from SHA256 import *
+from typing import Any
 
 class BlockChain():
     def __init__(self, db_path: str, path_is_relative = True) -> None:
@@ -400,6 +401,26 @@ class BlockChain():
             elif account_id == t["miner_id"]: account_balance += t["miner_reward"]
 
         self.set_user_balance(account_id, account_balance)
+
+
+    def update_any_column_any_block(self, block_id: int, column: str, value: Any) -> None:
+        """
+        Updates any column of any block with value.
+        """
+        
+        # INSERTING THE VARIABLES DIRECTLY INTO THE STRING IS ONLY OK BECAUSE THIS DOES NOT CONTAIN USER INPUT
+        # This will not be susceptible to sql injection attacks.
+        # It is done here because "Parameter markers can be used only for values", as explained in https://stackoverflow.com/questions/13880786/python-sqlite3-string-variable-in-execute
+        self.cursor.execute(
+            """
+            UPDATE block_chain
+               SET """ + column + """ = ?
+             WHERE id = ?
+            """,
+            (value, block_id)
+        )
+
+        self.conn.commit()
 
 
 class Block():

@@ -3,11 +3,11 @@ import random
 import re
 import secrets
 
-from passlib.hash import pbkdf2_sha256
-
+from getpass import getpass
 from helper import *
 from OptionsMenu import *
-from getpass import getpass
+from passlib.hash import pbkdf2_sha256
+from pynput.keyboard import Controller
 
 
 class Globals:
@@ -88,6 +88,28 @@ def check_block_chain_health(db: BlockChain) -> None:
     else:                         print(f"Block {Colors.FAIL}#{error_on_block_id}{Colors.ENDC} is broken")
 
 
+def choose_a_block_from_chain(db: BlockChain, message: str) -> str:
+    """
+    Queries the database for available blocks.
+    Prompts the user for a block.
+    Blocks are prepended with an indication of where the chain is healthy or not.
+    Returns the id of the chosen block, as an int
+    """
+
+    blocks_ids = list(db.get_blocks_ids())
+    error_on_block_id = db.check_chain_health(-1)
+    block_state = "\u2714"
+
+    # Adding check mark or cross to the start of the ids
+    for i in range(len(blocks_ids)):
+        if blocks_ids[i] == error_on_block_id: block_state = "\u2718"
+
+        blocks_ids[i] = block_state + " " + str(blocks_ids[i])
+
+
+    return int(options_menu(blocks_ids, message)[2:])
+
+
 def create_and_chain_block(db: BlockChain, block_data: dict) -> Block:
     """ 
     Creates and chains a new block if possible 
@@ -138,26 +160,71 @@ def delete_block(db: BlockChain) -> None:
 
     message = "Which block do you wish to delete?"
     
-    blocks_ids = list(db.get_blocks_ids())
-    error_on_block_id = db.check_chain_health(-1)
-    block_state = "\u2714"
-
-    # Adding check mark or cross to the start of the ids
-    for i in range(len(blocks_ids)):
-        if blocks_ids[i] == error_on_block_id: block_state = "\u2718"
-
-        blocks_ids[i] = block_state + " " + str(blocks_ids[i])
-
-
-    answer = OptionsMenu(blocks_ids, message)[2:]
+    answer = choose_a_block_from_chain(db, message)
 
     message = f"Are you sure you wish to delete block {Colors.BOLD}{Colors.WARNING}#{answer}{Colors.ENDC}?"
-    is_sure = OptionsMenu(("Yes", "No"), message)
+    is_sure = options_menu(("Yes", "No"), message)
 
     if is_sure == "Yes": 
         db.delete_block(answer)
         os.system(Globals.CLEAR_COMMAND)
         input(f"Block {Colors.BOLD}#{answer}{Colors.ENDC} deleted")
+
+
+def edit_block(db: BlockChain) -> None:
+    """
+    Allows the user to edit every item of a block.
+    Prompt the user, given all the available blocks.
+    """
+
+    message = "Choose a block:"
+
+    chosen_block_id = choose_a_block_from_chain(db, message)
+
+    # Prompting for a column
+    block = db.get_block_by_id(chosen_block_id)
+    block_lines = get_pretty_block(block)
+
+    edit_line = options_menu(block_lines[1:], block_lines[0])
+    chosen_option_index = block_lines.index(edit_line)
+
+    # Adding listener for keyboard in order to prefill it and make a line editable
+    keyboard = Controller()
+
+    os.system(Globals.CLEAR_COMMAND)
+
+    # Printing the lines and making space for the one that should be editable
+    for line in block_lines:
+        if line != edit_line: print(line)
+        else:                 print()
+
+    # Making an editable line
+    editable = re.findall(":\s*(.*)", edit_line)[0]
+    fixed = edit_line[0:edit_line.index(editable)]
+
+    print(Colors.UPONELINE * (len(block_lines) - chosen_option_index), end="")
+    print(fixed, end="")
+    keyboard.type(editable)
+    edited = input()
+
+    # --- MATCHING to decide the equivalent column name on the databases ---    
+    column_match = {
+    "previous hash":     "previous_hash",
+    "from":              "from_id",
+    "to":                "to_id",
+    "amount (p$)":       "amount",
+    "mined by":          "miner_id",
+    "miner reward (p$)": "miner_reward",
+    "nonce":             "nonce",
+    "hash":              "hash"   
+    }
+
+    column_name = column_match[re.findall("(^.*):", fixed)[0].lower()]
+
+    # TODO: Editing number, i.e. amount, writes wrong number to db or straight up shit
+    db.update_any_column_any_block(chosen_block_id, column_name, edited)
+
+    pass
 
 
 def extract_id_from_string(string: str) -> str:
@@ -197,33 +264,6 @@ def fix_block_chain(db: BlockChain) -> None:
         print(f"{SpecialChars.CHECK_MARK} #{blocks_ids[i]}")
         
     print("Done!")
-
-
-def log_in(db: BlockChain) -> None:
-    """ Prompts for passphrase and attempts to authenticate against a db """
-
-    while True:
-        os.system(Globals.CLEAR_COMMAND)
-        passphrase = getpass(prompt = "Passphrase: ")      
-
-        # Filtering out invalid passphrases
-        if passphrase == "":
-            print("Invalid passphrase. Please try again\n")
-            input()
-            continue
-
-        break
-
-    authenticate_user(db, passphrase)
-
-
-def log_out() -> None:
-    """
-    Logs user out by setting Globals.LOGGED_IN_AS to None.
-    """
-
-    Globals.LOGGED_IN_ACCOUNT_ID = None
-    Globals.LOGGED_IN_USERNAME   = None
 
 
 def get_all_accounts_pretty(db: BlockChain) -> tuple:
@@ -268,6 +308,7 @@ def get_interface_options() -> tuple:
         "See Accounts Balances",
         "Show Latest blocks",
         "Update All balances",
+        "Edit a Block",
         "Delete Block",
         "Quit"
     )
@@ -281,6 +322,7 @@ def get_interface_options() -> tuple:
         "Send PisitiCoins",
         "Show Latest blocks",
         "Update All balances",
+        "Edit a Block",
         "Delete Block",
         "Quit"
     )
@@ -289,9 +331,9 @@ def get_interface_options() -> tuple:
     else:                                    return logged_in
 
 
-def pretty_print_block(block: dict) -> None:
+def get_pretty_block(block: dict) -> tuple:
     """
-    Prints entirety of a block's data formatted.
+    Returns a tuple of string containing a pretty print of every line on a block
     
     Raises KeyError if 'block' does not contain the following keys:
         - "id"
@@ -320,15 +362,47 @@ def pretty_print_block(block: dict) -> None:
     if required_keys != tuple(block.keys()):
         raise KeyError(f"Mismatched keys. Required keys: {required_keys}")
 
-    print(f"Block {Colors.BOLD}#{block['id']}{Colors.ENDC}")                  
-    print(f"Previous Hash: {block['previous_hash']}")
-    print(f"From:          {block['from_id']}")
-    print(f"To:            {block['to_id']}")
-    print(f"Amount:        P$ {block['amount']}")
-    print(f"Mined By:      {block['miner_id']}")
-    print(f"Miner Reward:  P$ {block['miner_reward']}")
-    print(f"Nonce:         {block['nonce']}")
-    print(f"Hash:          {block['hash']}", end = "\r\n\n")
+    # CAREFUL when changing this. May create serious bugs.
+    # Check the matching made inside edit_block() to determine if that breaks.
+    # Such matching is used to figure out the corresponding column name on the database
+    return (
+        f"Block {Colors.BOLD}#{block['id']}{Colors.ENDC}",
+        f"Previous Hash:     {block['previous_hash']}",
+        f"From:              {block['from_id']}",
+        f"To:                {block['to_id']}",
+        f"Amount (P$):       {block['amount']}",
+        f"Mined By:          {block['miner_id']}",
+        f"Miner Reward (P$): {block['miner_reward']}",
+        f"Nonce:             {block['nonce']}",
+        f"Hash:              {block['hash']}"
+    )
+
+
+def log_in(db: BlockChain) -> None:
+    """ Prompts for passphrase and attempts to authenticate against a db """
+
+    while True:
+        os.system(Globals.CLEAR_COMMAND)
+        passphrase = getpass(prompt = "Passphrase: ")      
+
+        # Filtering out invalid passphrases
+        if passphrase == "":
+            print("Invalid passphrase. Please try again\n")
+            input()
+            continue
+
+        break
+
+    authenticate_user(db, passphrase)
+
+
+def log_out() -> None:
+    """
+    Logs user out by setting Globals.LOGGED_IN_AS to None.
+    """
+
+    Globals.LOGGED_IN_ACCOUNT_ID = None
+    Globals.LOGGED_IN_USERNAME   = None
 
 
 def print_accounts_balances(db: BlockChain, accounts_pretty: tuple) -> None:
@@ -337,7 +411,7 @@ def print_accounts_balances(db: BlockChain, accounts_pretty: tuple) -> None:
     """
 
     greeting = "Choose an account"        
-    answer = OptionsMenu(accounts_pretty, greeting)
+    answer = options_menu(accounts_pretty, greeting)
 
     # accounts_ids is a tuple that contains username and id.
     # Must filter only id
@@ -392,7 +466,7 @@ def send_pisiticoins(db: BlockChain, accounts_pretty: tuple) -> None:
         from_id = Globals.LOGGED_IN_ACCOUNT_ID
 
         greeting = "Choose the account you wish to transfer to"        
-        to_id = OptionsMenu(accounts_pretty, greeting)
+        to_id = options_menu(accounts_pretty, greeting)
         to_id = extract_id_from_string(to_id)
 
         os.system(Globals.CLEAR_COMMAND)
@@ -412,7 +486,7 @@ def send_pisiticoins(db: BlockChain, accounts_pretty: tuple) -> None:
 
         greeting = f"You wish to transfer {amount} PisitiCoins from {from_id} to {to_id}, correct?"
         options = ["Yes", "No"]
-        if OptionsMenu(options, greeting) == "Yes":
+        if options_menu(options, greeting) == "Yes":
             break
     
     # Getting random miner
@@ -463,10 +537,11 @@ def show_latest_blocks(db: BlockChain) -> None:
 
     count = 1
     for block in db.get_all_blocks():
-        pretty_print_block(block)
+        for line in get_pretty_block(block): print(line)
 
         if count >= amount_blocks: break
         count += 1
+        print()
 
 
 def sign_up(db: BlockChain) -> None:
@@ -518,11 +593,12 @@ def run_interface(db_path: str) -> None:
     db = BlockChain(db_path)
     accounts_pretty = get_all_accounts_pretty(db)
 
-    answer = OptionsMenu(options, greeting)
+    answer = options_menu(options, greeting)
 
     match answer:
         case "Check Block Chain health": check_block_chain_health(db)
         case "Delete Block":             delete_block(db)
+        case "Edit a Block":             edit_block(db)
         case "Fix Block Chain":          fix_block_chain(db)    
         case "Log In":                   log_in(db)
         case "Log Out":                  log_out()
