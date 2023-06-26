@@ -201,6 +201,7 @@ def edit_block(db: BlockChain) -> None:
     print(Colors.UPONELINE * (len(block_lines) - chosen_option_index), end="")
     print(fixed, end="")
     keyboard.type(editable)
+    input()
     edited = input()
 
     # --- MATCHING to decide the equivalent column name on the databases ---    
@@ -240,14 +241,27 @@ def edit_block(db: BlockChain) -> None:
     pass
 
 
-def extract_id_from_string(string: str) -> str:
+def extract_id_from_string(db: BlockChain, string: str) -> str:
     """
-    Extracts passlib.hash.pbkdf2_sha256 hash from a string, if between parenthesis.
-    Example: "Luna   ($pbkdf2-sha256$10000$WGtNiTHmHGMsZUzJGYMQIg$bjHZlH6YI8wwfVaThD3LNrn5nd6VgLnG.xfFie1qRus)"
+    Extracts partial passlib.hash.pbkdf2_sha256 hash from a string, if between parenthesis.
+    Returns a match given all accounts ids in database. 
+    Returns None if not found
+    Example: "Luna   (bjHZlH6YI8wwfVaThD3LNrn5nd6VgLnG.xfFie1qRus)"
     Returns "$pbkdf2-sha256$10000$WGtNiTHmHGMsZUzJGYMQIg$bjHZlH6YI8wwfVaThD3LNrn5nd6VgLnG.xfFie1qRus"
     """
 
-    return re.findall("\((.*)\)", string)[0].rstrip()
+    acc_ids_in_db = db.get_accounts_ids_and_usernames().keys()
+    string = re.findall("\((.*)\)", string)[0]
+
+    match_id = None
+    for _id in acc_ids_in_db:
+        try:
+            match_id = re.findall(re.escape(string), _id)[0].rstrip()
+            return _id
+        except Exception as e:
+            pass
+
+    return None
 
 
 def fix_block_chain(db: BlockChain) -> None:
@@ -286,14 +300,22 @@ def get_all_accounts_pretty(db: BlockChain) -> tuple:
 
     accounts = db.get_accounts_ids_and_usernames()
     max_len = max([len(username) for username in accounts.values()])
+
+    ans = []
+    curr_user_id = None
+    for _id, username in accounts.items():
+        curr_user_id = re.findall("\$([^\$]*)$", _id)[0]
+        ans.append(f"{username}" + " " * (max_len + 1 - len(username)) + f"({curr_user_id})")
     
-    return tuple(f"{username}" + " " * (max_len + 1 - len(username)) + f"({_id})" for _id, username in accounts.items())
+    return tuple(ans)
 
 
 def get_interface_greeting() -> str:
     """
     Returns updated greeting message
     """
+
+    logged_in_pretty_id = re.findall("\$([^\$]*)$", Globals.LOGGED_IN_ACCOUNT_ID)[0] if Globals.LOGGED_IN_ACCOUNT_ID is not None else None
 
     return "\n" + \
     "                          _____  _       _  _    _   _____        _        \n" + \
@@ -303,7 +325,7 @@ def get_interface_greeting() -> str:
     "                         | |    | |\__ \| || |_ | || |____| (_) || || | | |\n" + \
     "                         |_|    |_||___/|_| \__||_| \_____|\___/ |_||_| |_|\n" + \
     "\n\n" + \
-    (f"{Colors.OKCYAN}Logged in as {Colors.BOLD}{Globals.LOGGED_IN_USERNAME} {Globals.LOGGED_IN_ACCOUNT_ID}{Colors.ENDC}\n" if Globals.LOGGED_IN_ACCOUNT_ID is not None else \
+    (f"{Colors.OKCYAN}Logged in as {Colors.BOLD}{Globals.LOGGED_IN_USERNAME} ({logged_in_pretty_id}){Colors.ENDC}\n" if Globals.LOGGED_IN_ACCOUNT_ID is not None else \
      f"{Colors.FAIL}Not logged in{Colors.ENDC}\n")
 
 
@@ -428,7 +450,7 @@ def print_accounts_balances(db: BlockChain, accounts_pretty: tuple) -> None:
 
     # accounts_ids is a tuple that contains username and id.
     # Must filter only id
-    acc_id = extract_id_from_string(answer)
+    acc_id = extract_id_from_string(db, answer)
 
     # If simply print answer, there may be too many white spaces between username
     # and account id.
@@ -438,12 +460,10 @@ def print_accounts_balances(db: BlockChain, accounts_pretty: tuple) -> None:
         username = username[0].rstrip() + " "
     except IndexError as e:
         username = ""
-
-    corrected_username_and_id = username + acc_id
     
     acc_balance = db.get_account_balance(acc_id)
     os.system(Globals.CLEAR_COMMAND)
-    print(f"Account {Colors.BOLD}{corrected_username_and_id}{Colors.ENDC} has {Colors.BOLD}P$ {acc_balance}{Colors.ENDC}")
+    print(f"Account {Colors.BOLD}{answer}{Colors.ENDC} has {Colors.BOLD}P$ {acc_balance}{Colors.ENDC}")
 
 
 def remine_all_blocks(db: BlockChain) -> None:
@@ -480,7 +500,6 @@ def send_pisiticoins(db: BlockChain, accounts_pretty: tuple) -> None:
 
         greeting = "Choose the account you wish to transfer to"        
         to_id = options_menu(accounts_pretty, greeting)
-        to_id = extract_id_from_string(to_id)
 
         os.system(Globals.CLEAR_COMMAND)
         
@@ -497,11 +516,24 @@ def send_pisiticoins(db: BlockChain, accounts_pretty: tuple) -> None:
         if amount < 0:
             amount *= -1
 
-        greeting = f"You wish to transfer {amount} PisitiCoins from {from_id} to {to_id}, correct?"
+        # Getting only the user's actual id, i.e., filtering out salt, hash method and such
+        try:
+            pretty_user_id = re.findall("\$([^\$]*)$", Globals.LOGGED_IN_ACCOUNT_ID)[0]
+        except Exception as e:
+            pretty_user_id = ""
+
+        # Getting rid of excess spaces between username and id
+        to_id = " ".join(re.split(" +", to_id))
+
+        # Confirmation
+        greeting = f"You wish to transfer {amount} PisitiCoins from {Globals.LOGGED_IN_USERNAME} ({pretty_user_id}) to {to_id}, correct?"
         options = ["Yes", "No"]
         if options_menu(options, greeting) == "Yes":
             break
     
+    # Getting the database version of the id
+    to_id = extract_id_from_string(db, to_id)
+
     # Getting random miner
     miner_id = secrets.choice(tuple(db.get_accounts_ids_and_usernames().keys()))
     block_data = {
