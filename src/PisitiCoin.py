@@ -68,11 +68,7 @@ def check_block_chain_health(db: BlockChain) -> None:
     os.system(Globals.CLEAR_COMMAND)
 
     while True:
-        amount_blocks = input("How many blocks do you wish to verify? ('a' for all) ")
-        
-        # If all
-        if amount_blocks.lower() == "a": 
-            amount_blocks = -1
+        amount_blocks = input("How many blocks do you wish to verify? (Blank for all) ") or -1
         
         try:
             amount_blocks = int(amount_blocks)
@@ -538,12 +534,8 @@ def show_latest_blocks(db: BlockChain) -> None:
 
     while True:
         os.system(Globals.CLEAR_COMMAND)
-        amount_blocks = input("How many blocks do you wish to see? ('a' for all) ")
+        amount_blocks = input("How many blocks do you wish to see? (Blank for all) ") or len(db.get_blocks_ids())
         
-        # If all
-        if amount_blocks.lower() == "a": 
-            amount_blocks = len(db.get_blocks_ids())
-
         try:
             amount_blocks = int(amount_blocks)
             break
