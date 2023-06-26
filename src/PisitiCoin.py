@@ -338,27 +338,27 @@ def get_interface_options() -> tuple:
         "Log In",
         "Sign Up",
         "Check Block Chain health",
+        "Delete Block",
+        "Edit a Block",
         "Fix Block Chain",
         "Remine All Blocks",
         "See Accounts Balances",
         "Show Latest blocks",
         "Update All balances",
-        "Edit a Block",
-        "Delete Block",
         "Quit"
     )
 
     logged_in = (
         "Log Out",
         "Check Block Chain health",
+        "Delete Block",
+        "Edit a Block",
         "Fix Block Chain",
         "Remine All Blocks",
         "See Accounts Balances",
         "Send PisitiCoins",
         "Show Latest blocks",
         "Update All balances",
-        "Edit a Block",
-        "Delete Block",
         "Quit"
     )
 
