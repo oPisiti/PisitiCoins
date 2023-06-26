@@ -221,7 +221,24 @@ def edit_block(db: BlockChain) -> None:
 
     column_name = column_match[re.findall("(^.*):", fixed)[0].lower()]
 
-    # TODO: Editing number, i.e. amount, writes wrong number to db or straight up shit
+    # Making sure float fields are float
+    if column_name in ["amount", "miner_reward"]:
+        try:
+            edited = float(edited)
+        except ValueError as e:
+            os.system(Globals.CLEAR_COMMAND)
+            print(f"Field {column_name} must be convertible to float")
+            return
+
+    # Making sure int fields are int
+    if column_name in ["nonce"]:
+        try:
+            edited = int(edited)
+        except ValueError as e:
+            os.system(Globals.CLEAR_COMMAND)
+            print(f"Field {column_name} must be convertible to int")
+            return
+
     db.update_any_column_any_block(chosen_block_id, column_name, edited)
 
     pass
