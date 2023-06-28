@@ -1,6 +1,6 @@
 # PisitiCoins
 
-#### Video Demo:  https://youtu.be/0ffYGJ71CvA
+#### Video Demo:  
 
 #### Description:
 An exercise to better understand the workings of blockchains and cryptocurrencies.
@@ -38,19 +38,25 @@ Database is pre-populated accounts, whose passphrases are each one of the lower 
 Rehashes every block, in order, to determine inconsistencies. 
 
 ### Delete/Edit Block
+Breaks chain integrity until fixing or remining of all blocks is executed.
 
 ### Fix Block Chain
 Remines necessary blocks.
 
 ### Remine All Blocks
+Remines every block and tries to figure out a non destructive way of fixing the chain.
 
 ### See Accounts Balances
+Prompts the user for an account, then print its balance.
 
 ### Send PisitiCoins
+Requires user to be logged in and have a sufficiently large balance.
 
 ### Show Latest blocks
+Pretty prints a blocks's information.
 
 ### Update All balances
+Recalculates every user's balance by going through every block, in order.
 
 
 ## Usage
