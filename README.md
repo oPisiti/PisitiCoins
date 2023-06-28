@@ -19,6 +19,13 @@ Blocks stored in the database contain the following nodes:
 
 ![Screenshot from 2023-06-27 23-38-53](https://github.com/oPisiti/PisitiCoins/assets/78967454/0c61fb58-4b35-4b82-bda8-6ff1a1d2193a)
 
+
+#### Custom made:
+  - SHA256 implementation
+  - CLI interface
+  - Options menu
+  - Wrapper functions for communication with this specific database
+
 ## Features
 ### Log In/Out and Sign Up
 An account id is derived using PBKDF2 with 10,000 rounds and 16 bytes long salts. Only such id is stored in the database.
@@ -62,9 +69,3 @@ python3 src/PisitiCoin.py.
 Create a new account or log in to one of the existing ones whose passphrases are each one of the lower case letters from "a" to "m".
 
 Comes with pre populated blockchain. Give it a try!
-
-## Custom made:
-  - SHA256 implementation
-  - CLI interface
-  - Options menu
-  - Wrapper functions for comunication with this specific database
