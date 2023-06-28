@@ -19,17 +19,52 @@ Blocks stored in the database contain the following nodes:
 
 ![Screenshot from 2023-06-27 23-38-53](https://github.com/oPisiti/PisitiCoins/assets/78967454/0c61fb58-4b35-4b82-bda8-6ff1a1d2193a)
 
+## Features
+### Log In/Out and Sign Up
+An account id is derived using PBKDF2 with 10,000 rounds and 16 bytes long salts. Only such id is stored in the database.
+
+Logging in repeats the process for every salt stored and matches its corresponding id.
+
+Database is pre-populated accounts, whose passphrases are each one of the lower case letters from "a" to "m".
+
+### Check Block Chain health
+Rehashes every block, in order, to determine inconsistencies. 
+
+### Delete/Edit Block
+
+### Fix Block Chain
+Remines necessary blocks.
+
+### Remine All Blocks
+
+### See Accounts Balances
+
+### Send PisitiCoins
+
+### Show Latest blocks
+
+### Update All balances
+
+
 ## Usage
-Open PisitiCoin.py. No external modules required.
+Recomended using a virtual environment.
+
+Install dependencies
+```python3
+pip install -r requirements.txt
+``` 
+
+Run 
+```python3
+python3 src/PisitiCoin.py. 
+```
+
+Create a new account or log in to one of the existing ones whose passphrases are each one of the lower case letters from "a" to "m".
 
 Comes with pre populated blockchain. Give it a try!
 
-## Functionalities
-  - View a wallet's balance
-  - Transfer coins
-  - Check blockchain validity
-  - Show latest blocks in chain.
-
 ## Custom made:
-  - Options menu
   - SHA256 implementation
+  - CLI interface
+  - Options menu
+  - Wrapper functions for comunication with this specific database
