@@ -1,0 +1,34 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Index
+{% endblock %}
+
+{% block main %}
+<table>
+    <tr>
+        <th>Owned stocks</th>
+        <th>N° Shares</th>
+        <th>Current Price</th>
+        <th>Total Value</th>
+    </tr>
+    {% for stock in owned_stocks.keys() %}
+    <tr>
+        <td>{{ stock }}</td>
+        <td>{{ owned_stocks[stock] | int }}</td>
+        <td>{{ prices[stock] | usd }}</td>
+        <td>{{ (owned_stocks[stock] * prices[stock]) | usd }}</td>
+    </tr>
+    {% endfor %}
+</table>
+<table>
+    <tr>
+        <th>Cash Balance</th>
+        <th>Total</th>
+    </tr>
+    <tr>
+        <td>{{ cash | usd }}</td>
+        <td>{{ stocks_value | usd }}</td>
+    </tr>
+</table>
+{% endblock %}
