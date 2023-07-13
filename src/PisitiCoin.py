@@ -7,8 +7,8 @@ from getpass import getpass
 from helper import *
 from OptionsMenu import *
 from passlib.hash import pbkdf2_sha256
-from pynput.keyboard import Controller
-
+from pynput.keyboard import Controller 
+from pynput import keyboard as kb
 
 class Globals:
     """
@@ -609,6 +609,16 @@ def sign_up(db: BlockChain) -> None:
     )
 
 
+def toggle_fullscreen() -> None:
+    """
+    Toggles the terminal's fullscreen by pressing the F11 key
+    """
+
+    keyboard = Controller()
+    keyboard.press(kb.Key.f11)
+    keyboard.release(kb.Key.f11)
+
+
 def update_all_balances(db: BlockChain) -> None:
     """
     Simple call of database for full balances update 
@@ -643,7 +653,7 @@ def run_interface(db_path: str) -> None:
         case "Fix Block Chain":          fix_block_chain(db)    
         case "Log In":                   log_in(db)
         case "Log Out":                  log_out()
-        case "Quit":                     raise StopIteration()
+        case "Quit":                     raise StopIteration()                                
         case "Remine All Blocks":        remine_all_blocks(db)
         case "See Accounts Balances":    print_accounts_balances(db, accounts_pretty)    
         case "Send PisitiCoins":         send_pisiticoins(db, accounts_pretty)
@@ -657,6 +667,11 @@ def run_interface(db_path: str) -> None:
 
 
 if __name__ == "__main__":
+    # Maximizing the screen in order for the editing to work
+    # Editing relies on moving the cursor up a certain number of lines
+    # If lines wrap, it will end up on the wrong one
+    toggle_fullscreen()
+
     # Changing the current directory in order to use a relative path to the database
     os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
@@ -666,5 +681,8 @@ if __name__ == "__main__":
     while True:
         try:
             run_interface(file_name)
+
         except StopIteration as e:
             break
+
+    toggle_fullscreen()
