@@ -1,6 +1,6 @@
 # PisitiCoins
 
-#### Video Demo:  
+#### Video Demo: https://youtu.be/HuzzJ8RMxxg
 
 #### Description:
 An exercise to better understand the workings of blockchains and cryptocurrencies.
