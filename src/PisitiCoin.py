@@ -7,7 +7,6 @@ from getpass import getpass
 from helper import *
 from OptionsMenu import *
 from passlib.hash import pbkdf2_sha256
-from pynput.keyboard import Controller 
 from pynput import keyboard as kb
 
 class Globals:
@@ -185,7 +184,7 @@ def edit_block(db: BlockChain) -> None:
     chosen_option_index = block_lines.index(edit_line)
 
     # Adding listener for keyboard in order to prefill it and make a line editable
-    keyboard = Controller()
+    keyboard = kb.Controller()
 
     os.system(Globals.CLEAR_COMMAND)
 
@@ -200,8 +199,9 @@ def edit_block(db: BlockChain) -> None:
 
     print(Colors.UPONELINE * (len(block_lines) - chosen_option_index), end="")
     print(fixed, end="")
-    keyboard.type(editable)
     input()
+    keyboard.type(editable)
+    sleep(1)
     edited = input()
 
     # --- MATCHING to decide the equivalent column name on the databases ---    
@@ -614,9 +614,9 @@ def toggle_fullscreen() -> None:
     Toggles the terminal's fullscreen by pressing the F11 key
     """
 
-    keyboard = Controller()
-    keyboard.press(kb.Key.f11)
-    keyboard.release(kb.Key.f11)
+    tmp_keyboard = kb.Controller()
+    tmp_keyboard.press(kb.Key.f11)
+    tmp_keyboard.release(kb.Key.f11)
 
 
 def update_all_balances(db: BlockChain) -> None:
