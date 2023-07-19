@@ -20,11 +20,45 @@ Blocks stored in the database contain the following nodes:
 ![Screenshot from 2023-06-27 23-38-53](https://github.com/oPisiti/PisitiCoins/assets/78967454/0c61fb58-4b35-4b82-bda8-6ff1a1d2193a)
 
 
-#### Custom made:
-  - SHA256 implementation
-  - CLI interface
-  - Options menu
-  - Wrapper functions for communication with this specific database
+## Custom made:
+### SHA256 module
+Made from scratch, implements the hash function, given a given the steps of the algorithm.
+
+### CLI interface
+The logo, logged in user and options need to be redefined at every command.
+
+Getters and setters were implemented. 
+An example is the change in options when a user is authenticated (options like "send pisiticoins" are added) versus not authenticated (
+options like "log in" are added).
+
+### Options menu
+Using pynput, creates a listener for keys such as arrows and enter.
+Although other, easier to implement, libraries exist, this was the only one that provided a solution supported in Windows and Linux.
+Compatibility is one of the goals of this project.
+
+Re-renders the screen as soon as one of those is pressed.
+
+The module OptionsMenu.py is a collection of functions wich need to communicate with each other.
+
+As I didn't want to define them with many arguments each, the first idea was to create global variables.
+This, however, is ill-advised in basically all the forums I researched.
+
+The solution I came up with, then, was to use Environment variables.
+It works nicely, even though I it is not its intended use.
+One negative aspect is that they only accept strings. Therefore, the use of "true" and "false" were required.
+
+In hindsight, a more elegant solution would be to simply wrap all of the function with a class.
+The required variables would, then, be accessible by every method.
+To kickstart the menu, the addition of a start() or begin() method that calls the others would suffice.
+
+### Wrapper functions for communication with this specific database
+Two classes with multiple methods used to perform the various queries to the database required for the main program.
+
+All of the communication with the sqlite db is done via these functions. 
+
+Therefore, the end user does not need to understand the underlying schema or implement custom queries.
+
+They are devided into getters, setters and updaters.
 
 ## Features
 ### Log In/Out and Sign Up
