@@ -1,3 +1,6 @@
+# Author:  Lauro França @oPisiti
+# Created: 2023
+
 from math import ceil
 
 def dec2bin_int(x):

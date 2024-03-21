@@ -1,3 +1,6 @@
+# Author:  Lauro França @oPisiti
+# Created: 2023
+
 import json
 import sqlite3
 
