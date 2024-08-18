@@ -1,5 +1,12 @@
-# Author:  Lauro França @oPisiti
-# Created: 2023
+#********************************************************************
+# Author: Lauro França (oPisiti)                                    #
+# Contact:                                                          #
+#   github: oPisiti                                                 #
+#   Email: contact@opisiti.com                                      #
+# Date: May, 2023                                                   #
+# Description:                                                      #
+#   A SHA256 hash function from scratch                             #
+#********************************************************************
 
 from math import ceil
 
